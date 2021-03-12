@@ -848,7 +848,7 @@ bl::result<std::shared_ptr<DispatchResult>> GrapeInstance::OnReceive(
   }
   case rpc::TO_VINEYARD_DATAFRAME: {
     BOOST_LEAF_AUTO(vy_obj_id_in_json, contextToVineyardDataFrame(params));
-    r->set_data(vy_obj_id_in_json);
+    r->set_data(vy_obj_id_in_json, DispatchResult::AggregatePolicy::kPickFirst);
     break;
   }
   case rpc::ADD_COLUMN: {
