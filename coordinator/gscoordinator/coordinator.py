@@ -491,6 +491,8 @@ class CoordinatorServiceServicer(
                         error_codes_pb2.OK,
                         message=message,
                     )
+            if request.once:
+                break
 
     def CloseSession(self, request, context):
         """

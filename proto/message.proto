@@ -116,6 +116,7 @@ message RunStepResponse {
 
 message FetchLogsRequest {
   string session_id = 1;
+  bool once = 2;
 }
 
 message FetchLogsResponse {

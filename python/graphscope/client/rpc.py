@@ -265,7 +265,7 @@ class GRPCClient(object):
 
     @suppress_grpc_error
     def _fetch_logs_impl(self):
-        request = message_pb2.FetchLogsRequest(session_id=self._session_id)
+        request = message_pb2.FetchLogsRequest(session_id=self._session_id, once=False)
         responses = self._stub.FetchLogs(request)
         for resp in responses:
             resp = check_grpc_response(resp)
@@ -362,7 +362,19 @@ class GRPCGatewayClient(GRPCClient):
 
     @suppress_grpc_gateway_error
     def _fetch_logs_impl(self):
-        logger.warning("GRPC gateway call doesn't support fetch logs.")
+        while True:
+            request = message_pb2.FetchLogsRequest(session_id=self._session_id, once=True)
+            response = message_pb2.FetchLogsResponse()
+            try:
+                response = self._run_gateway_stub("FetchLogs", request, response)
+                response = check_grpc_response(response)
+            except Exception:  # ignore exception, and continue fetching
+                pass
+            else:
+                message = response.message.rstrip()
+                if message:
+                    logger.info(message, extra={"simple": True})
+            time.sleep(3)
 
     @catch_grpc_gateway_error
     def _send_heartbeat_impl(self, request):
