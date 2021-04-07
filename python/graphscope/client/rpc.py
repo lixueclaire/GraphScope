@@ -316,7 +316,7 @@ class GRPCGatewayClient(GRPCClient):
         self._session_id = None
         self._logs_fetching_thread = None
 
-    def _run_gateway_stub(self, path, request, response):
+    def _run_gateway_stub(self, path, request, response, stream=False):
         json_payload = json_format.MessageToDict(request)
         resp = requests.post(
             "%s/gs.rpc.CoordinatorService/%s" % (self._endpoint, path),
@@ -328,6 +328,13 @@ class GRPCGatewayClient(GRPCClient):
                 % (path, resp.status_code, resp.text)
             )
         body = resp.json()
+        if stream:
+            if 'result' not in body:
+                raise GRPCError(
+                    "requests call '%s': failed with error %s"
+                    % (path, body)
+                )
+            body = body['result']
         if "status" not in body:
             code = body.get("code", "")
             message = body.get("message", "")
@@ -366,7 +373,7 @@ class GRPCGatewayClient(GRPCClient):
             request = message_pb2.FetchLogsRequest(session_id=self._session_id, once=True)
             response = message_pb2.FetchLogsResponse()
             try:
-                response = self._run_gateway_stub("FetchLogs", request, response)
+                response = self._run_gateway_stub("FetchLogs", request, response, stream=True)
                 response = check_grpc_response(response)
             except Exception:  # ignore exception, and continue fetching
                 pass
