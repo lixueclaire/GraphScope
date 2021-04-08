@@ -479,6 +479,19 @@ class CoordinatorServiceServicer(
         return op
 
     def FetchLogs(self, request, context):
+        if request.once:
+            if self._streaming_logs:
+                messages = []
+                while True:
+                    try:
+                        messages.append(sys.stdout.poll(timeout=3))
+                    except queue.Empty:
+                        break
+                yield self._make_response(message_pb2.FetchLogsResponse,
+                    error_codes_pb2.OK,
+                    message=json.dumps(messages))
+            return
+
         while self._streaming_logs:
             try:
                 message = sys.stdout.poll(timeout=3)
@@ -491,8 +504,6 @@ class CoordinatorServiceServicer(
                         error_codes_pb2.OK,
                         message=message,
                     )
-            if request.once:
-                break
 
     def CloseSession(self, request, context):
         """

@@ -378,9 +378,13 @@ class GRPCGatewayClient(GRPCClient):
             except Exception:  # ignore exception, and continue fetching
                 pass
             else:
-                message = response.message.rstrip()
-                if message:
-                    logger.info(message, extra={"simple": True})
+                messages = response.message.rstrip()
+                if messages:
+                    try:
+                        for message in json.loads(messages):
+                            logger.info(message, extra={"simple": True})
+                    except Exception:
+                        logger.info(messages, extra={"simple": True})
             time.sleep(3)
 
     @catch_grpc_gateway_error
