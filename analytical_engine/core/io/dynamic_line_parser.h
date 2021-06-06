@@ -59,6 +59,15 @@ class DynamicLineParser
     }
   }
 
+  void LineParserForELine(const std::string& line, oid_t& u, oid_t& v,
+                          edata_t& e_data) {
+    int64_t int_u, int_v;
+    double de_data;
+    this->LineParserForEverything(line, int_u, int_v, de_data);
+    u = folly::dynamic(int_u);
+    v = folly::dynamic(int_v);
+  }
+
   void LineParserForVFile(const std::string& line, oid_t& u,
                           oid_t& u_data) override {
     auto node = folly::parseJson(line);
@@ -66,6 +75,32 @@ class DynamicLineParser
     if (node.size() > 1) {
       u_data = node[1];
     }
+  }
+
+ private:
+  template <typename... Ts>
+  inline const char* LineParserForEverything(const std::string& line,
+                                             Ts&... vals) {
+    std::cmatch matches;
+    return this->LineParserForEverything(
+        line.c_str(),
+        std::forward<typename std::add_lvalue_reference<Ts>::type>(vals)...);
+  }
+
+  template <typename T>
+  inline const char* LineParserForEverything(const char* head, T& val) {
+    return grape::internal::match(
+        head, std::forward<typename std::add_lvalue_reference<T>::type>(val));
+  }
+
+  template <typename T, typename... Ts>
+  inline const char* LineParserForEverything(const char* head, T& val,
+                                             Ts&... vals) {
+    const char* next_head = grape::internal::match(
+        head, std::forward<typename std::add_lvalue_reference<T>::type>(val));
+    return this->LineParserForEverything(
+        next_head,
+        std::forward<typename std::add_lvalue_reference<Ts>::type>(vals)...);
   }
 };
 }  // namespace gs

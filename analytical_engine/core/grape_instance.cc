@@ -23,6 +23,7 @@
 #include "core/context/vertex_property_context.h"
 #include "core/fragment/dynamic_fragment.h"
 #include "core/fragment/dynamic_fragment_reporter.h"
+#include "core/loader/dynamic_fragment_loader.h"
 #include "core/grape_instance.h"
 #include "core/io/property_parser.h"
 #include "core/launcher.h"
@@ -56,6 +57,36 @@ bl::result<rpc::GraphDef> GrapeInstance::loadGraph(
 #ifdef NETWORKX
     using fragment_t = DynamicFragment;
     using vertex_map_t = typename fragment_t::vertex_map_t;
+    if (params.HasKey(rpc::E_FILE)) {
+      BOOST_LEAF_AUTO(efile, params.Get<std::string>(rpc::E_FILE));
+      BOOST_LEAF_AUTO(directed, params.Get<bool>(rpc::DIRECTED));
+      if (!efile.empty()) {
+        grape::LoadGraphSpec spec;
+        spec.directed = directed;
+        auto loader = DynamicFragmentLoader(comm_spec_);
+        auto fragment = loader.LoadFragment(efile, spec);
+
+        rpc::GraphDef graph_def;
+        graph_def.set_key(graph_name);
+        graph_def.set_directed(directed);
+        graph_def.set_graph_type(rpc::DYNAMIC_PROPERTY);
+        auto* schema_def = graph_def.mutable_schema_def();
+
+        schema_def->set_oid_type(
+            vineyard::TypeName<typename DynamicFragment::oid_t>::Get());
+        schema_def->set_vid_type(
+            vineyard::TypeName<typename DynamicFragment::vid_t>::Get());
+        schema_def->set_vdata_type(
+            vineyard::TypeName<typename DynamicFragment::vdata_t>::Get());
+        schema_def->set_edata_type(
+            vineyard::TypeName<typename DynamicFragment::edata_t>::Get());
+        schema_def->set_property_schema_json("{}");
+        auto wrapper = std::make_shared<FragmentWrapper<fragment_t>>(
+            graph_name, graph_def, fragment);
+        BOOST_LEAF_CHECK(object_manager_.PutObject(wrapper));
+        return graph_def;
+      }
+    }
     BOOST_LEAF_AUTO(directed, params.Get<bool>(rpc::DIRECTED));
     BOOST_LEAF_AUTO(distributed, params.Get<bool>(rpc::DISTRIBUTED));
 

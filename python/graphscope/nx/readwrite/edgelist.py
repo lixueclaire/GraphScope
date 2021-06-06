@@ -19,6 +19,7 @@
 # information.
 #
 
+from graphscope.framework import dag_utils
 import networkx.readwrite.edgelist
 from networkx.readwrite.edgelist import parse_edgelist as _parse_edgelist
 from networkx.readwrite.edgelist import read_edgelist as _read_edgelist
@@ -27,8 +28,9 @@ from networkx.utils.decorators import open_file
 from graphscope import nx
 from graphscope.nx.utils.compat import import_as_graphscope_nx
 from graphscope.nx.utils.compat import patch_docstring
+from graphscope.proto import types_pb2
 
-import_as_graphscope_nx(networkx.readwrite.edgelist)
+# import_as_graphscope_nx(networkx.readwrite.edgelist)
 
 
 @patch_docstring(_parse_edgelist)
@@ -150,3 +152,10 @@ def read_edgelist(
         nodetype=nodetype,
         data=data,
     )
+
+def read_edgelist_from_file(path, create_using=nx.Graph):
+    G = create_using(create_empty_in_engine=False)
+    op = dag_utils.create_graph(G.session_id, types_pb2.DYNAMIC_PROPERTY, efile=path, vfile="", directed=G.is_directed(), distributed=False)
+    graph_def = op.eval()
+    G._key = graph_def.key
+    return G

@@ -294,6 +294,8 @@ class Graph(object):
         # load graph attributes (must be after to_nx_graph)
         self.graph.update(attr)
         self._saved_signature = self.signature
+        if self._session_id is None:
+            self._session_id = get_default_session().session_id
 
     def _is_gs_graph(self, incoming_graph_data):
         return (
