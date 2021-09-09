@@ -373,6 +373,50 @@ class DynamicGraphReporter : public grape::Communicator {
   static const int batch_num_ = 100;
   folly::json::serialization_opts json_opts_;
 };
+
+
+template <typename FRAG_T>
+class ImmutableGraphReporter {};
+
+template <typename OID_T, typename VID_T>
+class ImmutableGraphReporter<vineyard::ArrowFragment<OID_T, VID_T>>
+    : public grape::Communicator {
+  using fragment_t = vineyard::ArrowFragment<OID_T, VID_T>;
+  using label_id_t = typename fragment_t::label_id_t;
+  using oid_t = OID_T;
+  using vid_t = VID_T;
+  using vertex_t = typename fragment_t::vertex_t;
+
+ public:
+  explicit ImmutableGraphReporter(const grape::CommSpec& comm_spec)
+      : comm_spec_(comm_spec) {
+    InitCommunicator(comm_spec.comm());
+  }
+
+  bl::result<std::string> Report(std::shared_ptr<fragment_t>& fragment,
+                                 const rpc::GSParams& params) {
+    BOOST_LEAF_AUTO(report_type, params.Get<rpc::ReportType>(rpc::REPORT_TYPE));
+    switch (report_type) {
+    case rpc::NODE_NUM: {
+      BOOST_LEAF_AUTO(label_id, params.Get<label_id_t>(rpc::LABEL_ID));
+      return std::to_string(reportNodeNum(fragment, label_id));
+    }
+    default:
+      CHECK(false);
+    }
+    return std::string();
+  }
+
+ private:
+  inline size_t reportNodeNum(std::shared_ptr<fragment_t>& fragment, label_id_t label_id) {
+    size_t frag_vnum = 5, total_vnum = 10;
+    // frag_vnum = fragment->GetTotalVerticesNum();
+    // Sum(frag_vnum, total_vnum);
+    return total_vnum;
+  }
+
+  grape::CommSpec comm_spec_;
+};
 }  // namespace gs
 
 #endif  // NETWORKX

@@ -597,6 +597,12 @@ class GraphDAGNode(DAGNode, GraphInterface):
         graph_dag_node._base_graph = self
         return graph_dag_node
 
+    def number_of_nodes(self, label_id=None):
+        op = dag_utils.report_graph(self, types_pb2.NODE_NUM, label_id=label_id)
+        graph_dag_node = GraphDAGNode(self._session, op)
+        graph_dag_node._base_graph = self
+        return graph_dag_node
+
     def unload(self):
         """Unload this graph from graphscope engine.
 
@@ -908,6 +914,10 @@ class Graph(GraphInterface):
         return self._session._wrapper(
             self._graph_node.to_dataframe(selector, vertex_range)
         )
+
+    def number_of_nodes(self, label_id=None):
+        self._check_unmodified()
+        return self._session._wrapper(self._graph_node.number_of_nodes(label_id))
 
     def is_directed(self):
         return self._directed
