@@ -301,7 +301,7 @@ def modify_edges(graph, modify_type, edges, attr={}, weight=None):
     config = {}
     config[types_pb2.GRAPH_NAME] = utils.s_to_attr(graph.key)
     config[types_pb2.MODIFY_TYPE] = utils.modify_type_to_attr(modify_type)
-    config[types_pb2.EDGES] = utils.bytes_to_attr(edges)
+    # config[types_pb2.EDGES] = utils.bytes_to_attr(edges)
     config[types_pb2.PROPERTIES] = utils.s_to_attr(json.dumps(attr))
     if weight:
         config[types_pb2.EDGE_KEY] = utils.s_to_attr(weight)
@@ -309,6 +309,7 @@ def modify_edges(graph, modify_type, edges, attr={}, weight=None):
         graph.session_id,
         types_pb2.MODIFY_EDGES,
         config=config,
+        large_attr=utils.bytes_to_large_attr(edges),
         output_types=types_pb2.GRAPH,
     )
     return op
@@ -329,12 +330,13 @@ def modify_vertices(graph, modify_type, vertices, attr={}):
     config = {}
     config[types_pb2.GRAPH_NAME] = utils.s_to_attr(graph.key)
     config[types_pb2.MODIFY_TYPE] = utils.modify_type_to_attr(modify_type)
-    config[types_pb2.NODES] = utils.bytes_to_attr(vertices)
+    # config[types_pb2.NODES] = utils.bytes_to_attr(vertices)
     config[types_pb2.PROPERTIES] = utils.s_to_attr(json.dumps(attr))
     op = Operation(
         graph.session_id,
         types_pb2.MODIFY_VERTICES,
         config=config,
+        large_attr=utils.bytes_to_large_attr(vertices),
         output_types=types_pb2.GRAPH,
     )
     return op

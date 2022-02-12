@@ -26,7 +26,6 @@ from networkx.classes.coreviews import AdjacencyView
 from networkx.classes.graph import Graph as RefGraph
 from networkx.classes.graphviews import generic_graph_view
 from networkx.classes.reportviews import DegreeView
-from networkx.classes.reportviews import NodeView
 import orjson as json
 
 from graphscope import nx
@@ -41,6 +40,7 @@ from graphscope.nx import NetworkXError
 from graphscope.nx.classes.dicts import AdjDict
 from graphscope.nx.classes.dicts import NodeDict
 from graphscope.nx.classes.reportviews import EdgeView
+from graphscope.nx.classes.reportviews import NodeView
 from graphscope.nx.convert import to_networkx_graph
 from graphscope.nx.utils.compat import patch_docstring
 from graphscope.nx.utils.misc import clear_cache
