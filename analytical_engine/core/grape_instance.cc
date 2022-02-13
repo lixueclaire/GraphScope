@@ -35,6 +35,7 @@
 #include "core/context/vertex_data_context.h"
 #include "core/context/vertex_property_context.h"
 #include "core/fragment/dynamic_fragment.h"
+#include "core/fragment/dynamic_fragment_poc.h"
 #include "core/grape_instance.h"
 #include "core/io/property_parser.h"
 #include "core/launcher.h"
@@ -70,7 +71,7 @@ bl::result<rpc::graph::GraphDefPb> GrapeInstance::loadGraph(
   switch (graph_type) {
   case rpc::graph::DYNAMIC_PROPERTY: {
 #ifdef NETWORKX
-    using fragment_t = DynamicFragment;
+    using fragment_t = DynamicFragmentPoc;
     using vertex_map_t = typename fragment_t::vertex_map_t;
     BOOST_LEAF_AUTO(directed, params.Get<bool>(rpc::DIRECTED));
     BOOST_LEAF_AUTO(distributed, params.Get<bool>(rpc::DISTRIBUTED));
@@ -84,7 +85,7 @@ bl::result<rpc::graph::GraphDefPb> GrapeInstance::loadGraph(
 
     auto fragment = std::make_shared<fragment_t>(vm_ptr);
     bool duplicated = !distributed;
-    fragment->Init(comm_spec_.fid(), directed, duplicated);
+    fragment->Init(comm_spec_.fid(), directed);
 
     rpc::graph::GraphDefPb graph_def;
 
@@ -288,7 +289,7 @@ bl::result<void> GrapeInstance::modifyVertices(const rpc::GSParams& params) {
   LOG(INFO) << "nodes_json: " << nodes_json;
   dynamic::Parse(nodes_json, nodes);
   auto fragment =
-      std::static_pointer_cast<DynamicFragment>(wrapper->fragment());
+      std::static_pointer_cast<DynamicFragmentPoc>(wrapper->fragment());
 
   fragment->ModifyVertices(nodes, common_attr, modify_type);
   return {};
@@ -327,7 +328,7 @@ bl::result<void> GrapeInstance::modifyEdges(const rpc::GSParams& params) {
   LOG(INFO) << "edges_json: " << edges_json;
   dynamic::Parse(edges_json, edges);
   auto fragment =
-      std::static_pointer_cast<DynamicFragment>(wrapper->fragment());
+      std::static_pointer_cast<DynamicFragmentPoc>(wrapper->fragment());
   fragment->ModifyEdges(edges, common_attr, modify_type, weight);
 #else
   RETURN_GS_ERROR(vineyard::ErrorCode::kUnimplementedMethod,

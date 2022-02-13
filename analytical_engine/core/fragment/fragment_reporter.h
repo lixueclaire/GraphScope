@@ -31,6 +31,7 @@
 #include "core/server/rpc_utils.h"
 #include "core/utils/convert_utils.h"
 #include "proto/graphscope/proto/types.pb.h"
+#include "core/fragment/dynamic_fragment_poc.h"
 
 namespace gs {
 /**
@@ -196,6 +197,200 @@ class DynamicFragmentReporter : public grape::Communicator {
           batch_nodes.PushBack(fragment->GetId(v));
           ++cnt;
         }
+        ++v;
+      }
+      // nodes["status"] store this batch_get_nodes operation status, if no node
+      // to fetch, set false;  nodes["batch"] store the nodes.
+      // nodes["next"] store the start vertex location of next batch_get_nodes
+      // operation.
+      dynamic::Value next(rapidjson::kArrayType);
+      if (!batch_nodes.Empty()) {
+        nodes.Insert("status", true);
+        nodes.Insert("batch", batch_nodes);
+        if (fragment->IsInnerVertex(v)) {
+          next.PushBack(fid).PushBack(v.GetValue());
+        } else {
+          next.PushBack(fid + 1).PushBack(0);
+        }
+      } else {
+        nodes.Insert("status", false);
+        next.PushBack(fid + 1).PushBack(0);
+      }
+      nodes.Insert("next", next);
+      return dynamic::Stringify(nodes);
+    }
+    return std::string();
+  }
+
+  grape::CommSpec comm_spec_;
+  static const int batch_num_ = 100;
+};
+
+class DynamicFragmentPocReporter : public grape::Communicator {
+  using fragment_t = DynamicFragmentPoc;
+  using oid_t = typename fragment_t::oid_t;
+  using vid_t = typename fragment_t::vid_t;
+  using vertex_t = typename fragment_t::vertex_t;
+  using adj_list_t = typename fragment_t::adj_list_t;
+
+ public:
+  explicit DynamicFragmentPocReporter(const grape::CommSpec& comm_spec)
+      : comm_spec_(comm_spec) {
+    InitCommunicator(comm_spec.comm());
+  }
+
+  bl::result<std::string> Report(std::shared_ptr<fragment_t>& fragment,
+                                 const rpc::GSParams& params) {
+    BOOST_LEAF_AUTO(report_type, params.Get<rpc::ReportType>(rpc::REPORT_TYPE));
+    switch (report_type) {
+    case rpc::NODE_NUM: {
+      return std::to_string(reportNodeNum(fragment));
+    }
+    case rpc::EDGE_NUM: {
+      return std::to_string(reportEdgeNum(fragment));
+    }
+    /*
+    case rpc::SELFLOOPS_NUM: {
+      return std::to_string(reportSelfloopsNum(fragment));
+    }
+    case rpc::HAS_NODE: {
+      BOOST_LEAF_AUTO(node_in_json, params.Get<std::string>(rpc::NODE));
+      oid_t node_id;
+      dynamic::Parse(node_in_json, node_id);
+      return std::to_string(hasNode(fragment, node_id));
+    }
+    case rpc::HAS_EDGE: {
+      BOOST_LEAF_AUTO(edge_in_json, params.Get<std::string>(rpc::EDGE));
+      dynamic::Value edge;
+      dynamic::Parse(edge_in_json, edge);
+      dynamic::Value src_id(edge[0]);
+      dynamic::Value dst_id(edge[1]);
+      return std::to_string(hasEdge(fragment, src_id, dst_id));
+    }
+    */
+    case rpc::NODE_DATA: {
+      BOOST_LEAF_AUTO(node_in_json, params.Get<std::string>(rpc::NODE));
+      oid_t node_id;
+      dynamic::Parse(node_in_json, node_id);
+      return getNodeData(fragment, node_id);
+    }
+    /*
+    case rpc::EDGE_DATA: {
+      BOOST_LEAF_AUTO(edge_in_json, params.Get<std::string>(rpc::EDGE));
+      dynamic::Value edge;
+      dynamic::Parse(edge_in_json, edge);
+      dynamic::Value src_id(edge[0]);
+      dynamic::Value dst_id(edge[1]);
+      return getEdgeData(fragment, src_id, dst_id);
+    }
+    */
+    case rpc::NEIGHBORS_BY_NODE:
+    case rpc::SUCCS_BY_NODE:
+    case rpc::PREDS_BY_NODE: {
+      BOOST_LEAF_AUTO(node_in_json, params.Get<std::string>(rpc::NODE));
+      oid_t node_id;
+      dynamic::Parse(node_in_json, node_id);
+      return getNeighbors(fragment, node_id, report_type);
+    }
+    case rpc::NODES_BY_LOC: {
+      BOOST_LEAF_AUTO(fid, params.Get<int64_t>(rpc::FID));
+      BOOST_LEAF_AUTO(lid, params.Get<int64_t>(rpc::LID));
+      return batchGetNodes(fragment, fid, lid);
+    }
+    default:
+      CHECK(false);
+    }
+    return std::string("");
+  }
+
+ private:
+  inline size_t reportNodeNum(std::shared_ptr<fragment_t>& fragment) {
+    size_t frag_vnum = 0, total_vnum = 0;
+    frag_vnum = fragment->GetInnerVerticesNum();
+    Sum(frag_vnum, total_vnum);
+    return total_vnum;
+  }
+
+  inline size_t reportEdgeNum(std::shared_ptr<fragment_t>& fragment) {
+    size_t frag_enum = 0, total_enum = 0;
+    frag_enum = fragment->GetEdgeNum();
+    Sum(frag_enum, total_enum);
+    return total_enum;
+  }
+
+  /*
+  inline size_t reportSelfloopsNum(std::shared_ptr<fragment_t>& fragment) {
+    size_t frag_selfloops_num = 0, total_selfloops_num = 0;
+    frag_selfloops_num = fragment->selfloops_num();
+    Sum(frag_selfloops_num, total_selfloops_num);
+    return total_selfloops_num;
+  }
+
+  bool hasNode(std::shared_ptr<fragment_t>& fragment, const oid_t& node) {
+    bool ret = false;
+    bool existed_in_frag = fragment->HasNode(node);
+    Sum(existed_in_frag, ret);
+    return ret;
+  }
+
+  bool hasEdge(std::shared_ptr<fragment_t>& fragment, const oid_t& u,
+               const oid_t& v) {
+    bool ret = false;
+    bool existed_in_frag = fragment->HasEdge(u, v);
+    Sum(existed_in_frag, ret);
+    return ret;
+  }
+  */
+
+  std::string getNodeData(std::shared_ptr<fragment_t>& fragment,
+                          const oid_t& n) {
+    vertex_t v;
+    if (fragment->GetInnerVertex(n, v)) {
+      return dynamic::Stringify(fragment->GetData(v));
+    }
+    return std::string();
+  }
+
+  /*
+  std::string getEdgeData(std::shared_ptr<fragment_t>& fragment, const oid_t& u,
+                          const oid_t& v) {
+    dynamic::Value ref_data;
+    fragment->GetEdgeData(u, v, ref_data);
+    return ref_data.IsNull() ? std::string() : dynamic::Stringify(ref_data);
+  }
+  */
+
+  std::string getNeighbors(std::shared_ptr<fragment_t>& fragment,
+                           const oid_t& node,
+                           const rpc::ReportType& report_type) {
+    vertex_t v;
+    dynamic::Value nbrs(rapidjson::kArrayType);
+    if (fragment->GetInnerVertex(node, v)) {
+      adj_list_t edges;
+      dynamic::Value id_array(rapidjson::kArrayType);
+      dynamic::Value data_array(rapidjson::kArrayType);
+      report_type == rpc::PREDS_BY_NODE
+          ? edges = fragment->GetIncomingAdjList(v)
+          : edges = fragment->GetOutgoingAdjList(v);
+      for (auto& e : edges) {
+        id_array.PushBack(fragment->GetId(e.neighbor()));
+        data_array.PushBack(e.data());
+      }
+      nbrs.PushBack(id_array).PushBack(data_array);
+    }
+    return nbrs.Empty() ? std::string() : dynamic::Stringify(nbrs);
+  }
+
+  std::string batchGetNodes(std::shared_ptr<fragment_t>& fragment, vid_t fid,
+                            vid_t start_lid) {
+    if (fragment->fid() == fid) {
+      int cnt = 0;
+      vertex_t v(start_lid);
+      dynamic::Value nodes(rapidjson::kObjectType);
+      dynamic::Value batch_nodes(rapidjson::kArrayType);
+      while (fragment->IsInnerVertex(v) && cnt < batch_num_) {
+        batch_nodes.PushBack(fragment->GetId(v));
+        ++cnt;
         ++v;
       }
       // nodes["status"] store this batch_get_nodes operation status, if no node
