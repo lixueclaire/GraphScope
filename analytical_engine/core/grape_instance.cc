@@ -364,7 +364,7 @@ bl::result<void> GrapeInstance::modifyEdges(const rpc::GSParams& params) {
                   object_manager_.GetObject<IFragmentWrapper>(graph_name));
   auto graph_type = wrapper->graph_def().graph_type();
 
-  if (graph_type != rpc::graph::DYNAMIC_PROPERTY || graph_type != rpc::graph::DYNAMIC_PROPERTY_POC) {
+  if (graph_type != rpc::graph::DYNAMIC_PROPERTY && graph_type != rpc::graph::DYNAMIC_PROPERTY_POC) {
     RETURN_GS_ERROR(
         vineyard::ErrorCode::kInvalidValueError,
         "GraphType must be DYNAMIC_PROPERTY, the origin graph type is: " +
@@ -385,11 +385,15 @@ bl::result<void> GrapeInstance::modifyEdges(const rpc::GSParams& params) {
   if (graph_type == rpc::graph::DYNAMIC_PROPERTY_POC) {
     auto fragment =
         std::static_pointer_cast<DynamicFragmentPoc>(wrapper->fragment());
+    double start = grape::GetCurrentTime();
     fragment->ModifyEdges(edges, common_attr, modify_type, weight);
+    LOG(INFO) << "Poc ModifyEdges time: " << grape::GetCurrentTime() - start;
   } else {
+    double start = grape::GetCurrentTime();
     auto fragment =
         std::static_pointer_cast<DynamicFragment>(wrapper->fragment());
     fragment->ModifyEdges(edges, common_attr, modify_type, weight);
+    LOG(INFO) << "Origin ModifyEdges time: " << grape::GetCurrentTime() - start;
   }
 #else
   RETURN_GS_ERROR(vineyard::ErrorCode::kUnimplementedMethod,

@@ -140,6 +140,7 @@ class DynamicFragmentPoc {
                    const rpc::ModifyType modify_type,
                    const std::string weight) {
     {
+      double start = grape::GetCurrentTime();
       edata_t e_data;
       oid_t src, dst;
       vid_t src_gid, dst_gid;
@@ -147,6 +148,8 @@ class DynamicFragmentPoc {
       // auto& partitioner = vm_ptr_->GetPartitioner();
       partitioner_t partitioner(fnum());
       mutation_t mutation;
+      mutation.edges_to_add.reserve(edges_to_modify.Size());
+      mutation.vertices_to_add.reserve(edges_to_modify.Size() * 2);
       for (auto& e : edges_to_modify) {
         // the edge could be [src, dst] or [srs, dst, value] or [src, dst,
         // {"key": val}]
@@ -200,7 +203,10 @@ class DynamicFragmentPoc {
           }
         }
       }
+      LOG(INFO) << "Poc processing edges time: " << grape::GetCurrentTime() - start;
+      start = grape::GetCurrentTime();
       frag_ptr_->Mutate(mutation);
+      LOG(INFO) << "Poc insert edges time: " << grape::GetCurrentTime() - start;
     }
   }
 
