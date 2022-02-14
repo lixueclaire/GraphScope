@@ -959,6 +959,13 @@ class FragmentWrapper<DynamicFragmentPoc> : public IFragmentWrapper {
                     "Cannot copy the DynamicProjectedFragment");
   }
 
+  bl::result<std::shared_ptr<IFragmentWrapper>> ToDirected(
+      const grape::CommSpec& comm_spec,
+      const std::string& dst_graph_name) override {
+    RETURN_GS_ERROR(vineyard::ErrorCode::kInvalidOperationError,
+                    "Cannot convert to the directed DynamicProjectedFragment");
+  }
+
   bl::result<std::shared_ptr<IFragmentWrapper>> ToUndirected(
       const grape::CommSpec& comm_spec,
       const std::string& dst_graph_name) override {

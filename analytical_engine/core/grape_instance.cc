@@ -286,7 +286,6 @@ bl::result<void> GrapeInstance::modifyVertices(const rpc::GSParams& params) {
   dynamic::Parse(common_attr_json, common_attr);
   // BOOST_LEAF_AUTO(nodes_json, params.Get<std::string>(rpc::NODES));
   std::string nodes_json = params.GetLargeAttr().chunk_list().items()[0].buffer();
-  LOG(INFO) << "nodes_json: " << nodes_json;
   dynamic::Parse(nodes_json, nodes);
   auto fragment =
       std::static_pointer_cast<DynamicFragmentPoc>(wrapper->fragment());
@@ -325,7 +324,6 @@ bl::result<void> GrapeInstance::modifyEdges(const rpc::GSParams& params) {
   }
   // BOOST_LEAF_AUTO(edges_json, params.Get<std::string>(rpc::EDGES));
   std::string edges_json = params.GetLargeAttr().chunk_list().items()[0].buffer();
-  LOG(INFO) << "edges_json: " << edges_json;
   dynamic::Parse(edges_json, edges);
   auto fragment =
       std::static_pointer_cast<DynamicFragmentPoc>(wrapper->fragment());

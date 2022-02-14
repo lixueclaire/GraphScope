@@ -373,8 +373,8 @@ class DynamicFragmentPocReporter : public grape::Communicator {
           ? edges = fragment->GetIncomingAdjList(v)
           : edges = fragment->GetOutgoingAdjList(v);
       for (auto& e : edges) {
-        id_array.PushBack(fragment->GetId(e.neighbor()));
-        data_array.PushBack(e.data());
+        id_array.PushBack(fragment->GetId(e.neighbor));
+        data_array.PushBack(e.data);
       }
       nbrs.PushBack(id_array).PushBack(data_array);
     }
