@@ -91,7 +91,7 @@ bl::result<rpc::graph::GraphDefPb> GrapeInstance::loadGraph(
 
     graph_def.set_key(graph_name);
     graph_def.set_directed(directed);
-    graph_def.set_graph_type(rpc::graph::DYNAMIC_PROPERTY);
+    graph_def.set_graph_type(rpc::graph::DYNAMIC_PROPERTY_POC);
     // dynamic graph doesn't have a vineyard id
     gs::rpc::graph::VineyardInfoPb vy_info;
     if (graph_def.has_extension()) {
@@ -370,7 +370,6 @@ bl::result<void> GrapeInstance::modifyEdges(const rpc::GSParams& params) {
         "GraphType must be DYNAMIC_PROPERTY, the origin graph type is: " +
             std::to_string(graph_type) + ", graph name: " + graph_name);
   }
-
   BOOST_LEAF_AUTO(common_attr_json, params.Get<std::string>(rpc::PROPERTIES));
   dynamic::Value common_attr, edges;
   // the common attribute for all edges to be modified
@@ -383,12 +382,14 @@ bl::result<void> GrapeInstance::modifyEdges(const rpc::GSParams& params) {
   std::string edges_json = params.GetLargeAttr().chunk_list().items()[0].buffer();
   dynamic::Parse(edges_json, edges);
   if (graph_type == rpc::graph::DYNAMIC_PROPERTY_POC) {
+    LOG(INFO) << "Begin Poc ModifyEdges.";
     auto fragment =
         std::static_pointer_cast<DynamicFragmentPoc>(wrapper->fragment());
     double start = grape::GetCurrentTime();
     fragment->ModifyEdges(edges, common_attr, modify_type, weight);
     LOG(INFO) << "Poc ModifyEdges time: " << grape::GetCurrentTime() - start;
   } else {
+    LOG(INFO) << "Begin Origin ModifyEdges.";
     double start = grape::GetCurrentTime();
     auto fragment =
         std::static_pointer_cast<DynamicFragment>(wrapper->fragment());

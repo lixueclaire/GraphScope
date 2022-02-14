@@ -243,7 +243,7 @@ class DiGraph(Graph):
     """
 
     @patch_docstring(Graph.__init__)
-    def __init__(self, incoming_graph_data=None, default_label=None, **attr):
+    def __init__(self, incoming_graph_data=None, default_label=None, impl="origin", **attr):
 
         self.graph_attr_dict_factory = self.graph_attr_dict_factory
         self.node_dict_factory = self.node_dict_factory
@@ -268,6 +268,8 @@ class DiGraph(Graph):
         self._remove_node_cache = []
         self._remove_edge_cache = []
 
+        if impl == "new":
+            self._graph_type = graph_def_pb2.DYNAMIC_PROPERTY_POC
         create_empty_in_engine = attr.pop(
             "create_empty_in_engine", True
         )  # a hidden parameter

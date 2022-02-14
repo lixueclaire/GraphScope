@@ -935,7 +935,7 @@ class FragmentWrapper<DynamicFragmentPoc> : public IFragmentWrapper {
       : IFragmentWrapper(id),
         graph_def_(std::move(graph_def)),
         fragment_(std::move(fragment)) {
-    CHECK_EQ(graph_def_.graph_type(), rpc::graph::DYNAMIC_PROPERTY);
+    CHECK_EQ(graph_def_.graph_type(), rpc::graph::DYNAMIC_PROPERTY_POC);
   }
 
   std::shared_ptr<void> fragment() const override {

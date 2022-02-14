@@ -140,6 +140,7 @@ class DynamicFragmentPoc {
                    const rpc::ModifyType modify_type,
                    const std::string weight) {
     {
+      LOG(INFO) << "begin adding edge.";
       double start = grape::GetCurrentTime();
       edata_t e_data;
       oid_t src, dst;
