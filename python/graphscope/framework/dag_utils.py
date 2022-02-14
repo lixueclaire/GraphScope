@@ -117,7 +117,7 @@ def create_graph(session_id, graph_type, inputs=None, **kwargs):
             for k, v in attrs.items():
                 if isinstance(v, attr_value_pb2.AttrValue):
                     config[k] = v
-    elif graph_type == graph_def_pb2.DYNAMIC_PROPERTY:
+    elif graph_type == graph_def_pb2.DYNAMIC_PROPERTY or graph_type == graph_def_pb2.DYNAMIC_PROPERTY_POC:
         config[types_pb2.E_FILE] = utils.s_to_attr(kwargs["efile"])
         config[types_pb2.V_FILE] = utils.s_to_attr(kwargs["vfile"])
         config[types_pb2.DIRECTED] = utils.b_to_attr(kwargs["directed"])
@@ -297,7 +297,7 @@ def modify_edges(graph, modify_type, edges, attr={}, weight=None):
     Returns:
         An op to modify edges on the graph.
     """
-    check_argument(graph.graph_type == graph_def_pb2.DYNAMIC_PROPERTY)
+    # check_argument(graph.graph_type == graph_def_pb2.DYNAMIC_PROPERTY)
     config = {}
     config[types_pb2.GRAPH_NAME] = utils.s_to_attr(graph.key)
     config[types_pb2.MODIFY_TYPE] = utils.modify_type_to_attr(modify_type)
@@ -326,7 +326,7 @@ def modify_vertices(graph, modify_type, vertices, attr={}):
     Returns:
         An op to modify vertices on the graph.
     """
-    check_argument(graph.graph_type == graph_def_pb2.DYNAMIC_PROPERTY)
+    # check_argument(graph.graph_type == graph_def_pb2.DYNAMIC_PROPERTY)
     config = {}
     config[types_pb2.GRAPH_NAME] = utils.s_to_attr(graph.key)
     config[types_pb2.MODIFY_TYPE] = utils.modify_type_to_attr(modify_type)

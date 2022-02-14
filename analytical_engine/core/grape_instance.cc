@@ -69,7 +69,7 @@ bl::result<rpc::graph::GraphDefPb> GrapeInstance::loadGraph(
                   params.Get<rpc::graph::GraphTypePb>(rpc::GRAPH_TYPE));
 
   switch (graph_type) {
-  case rpc::graph::DYNAMIC_PROPERTY: {
+  case rpc::graph::DYNAMIC_PROPERTY_POC: {
 #ifdef NETWORKX
     using fragment_t = DynamicFragmentPoc;
     using vertex_map_t = typename fragment_t::vertex_map_t;
@@ -78,7 +78,7 @@ bl::result<rpc::graph::GraphDefPb> GrapeInstance::loadGraph(
 
     VLOG(1) << "Loading graph, graph name: " << graph_name
             << ", graph type: DynamicFragment, directed: " << directed
-            << ", distributed: " << distributed;
+            << ", distributed: " << distributed << "new impl";
 
     auto vm_ptr = std::shared_ptr<vertex_map_t>(new vertex_map_t(comm_spec_));
     vm_ptr->Init();
@@ -86,6 +86,58 @@ bl::result<rpc::graph::GraphDefPb> GrapeInstance::loadGraph(
     auto fragment = std::make_shared<fragment_t>(vm_ptr);
     bool duplicated = !distributed;
     fragment->Init(comm_spec_.fid(), directed);
+
+    rpc::graph::GraphDefPb graph_def;
+
+    graph_def.set_key(graph_name);
+    graph_def.set_directed(directed);
+    graph_def.set_graph_type(rpc::graph::DYNAMIC_PROPERTY);
+    // dynamic graph doesn't have a vineyard id
+    gs::rpc::graph::VineyardInfoPb vy_info;
+    if (graph_def.has_extension()) {
+      graph_def.extension().UnpackTo(&vy_info);
+    }
+    vy_info.set_vineyard_id(-1);
+
+    vy_info.set_oid_type(PropertyTypeToPb(vineyard::normalize_datatype(
+        vineyard::TypeName<typename gs::DynamicFragment::oid_t>::Get())));
+    vy_info.set_vid_type(PropertyTypeToPb(vineyard::normalize_datatype(
+        vineyard::TypeName<typename gs::DynamicFragment::vid_t>::Get())));
+    vy_info.set_vdata_type(PropertyTypeToPb(vineyard::normalize_datatype(
+        vineyard::TypeName<typename gs::DynamicFragment::vdata_t>::Get())));
+    vy_info.set_edata_type(PropertyTypeToPb(vineyard::normalize_datatype(
+        vineyard::TypeName<typename gs::DynamicFragment::edata_t>::Get())));
+    vy_info.set_property_schema_json("{}");
+    graph_def.mutable_extension()->PackFrom(vy_info);
+
+    auto wrapper = std::make_shared<FragmentWrapper<fragment_t>>(
+        graph_name, graph_def, fragment);
+
+    BOOST_LEAF_CHECK(object_manager_.PutObject(wrapper));
+    return graph_def;
+#else
+    RETURN_GS_ERROR(vineyard::ErrorCode::kInvalidOperationError,
+                    "GraphScope is built with NETWORKX=OFF, please recompile "
+                    "it with NETWORKX=ON");
+#endif
+  }
+  case rpc::graph::DYNAMIC_PROPERTY: {
+#ifdef NETWORKX
+    using fragment_t = DynamicFragment;
+    using vertex_map_t = typename fragment_t::vertex_map_t;
+    BOOST_LEAF_AUTO(directed, params.Get<bool>(rpc::DIRECTED));
+    BOOST_LEAF_AUTO(distributed, params.Get<bool>(rpc::DISTRIBUTED));
+
+    VLOG(1) << "Loading graph, graph name: " << graph_name
+            << ", graph type: DynamicFragment, directed: " << directed
+            << ", distributed: " << distributed << " origin impl.";
+
+    auto vm_ptr = std::shared_ptr<vertex_map_t>(new vertex_map_t(comm_spec_));
+    vm_ptr->Init();
+
+    auto fragment = std::make_shared<fragment_t>(vm_ptr);
+    bool duplicated = !distributed;
+    fragment->Init(comm_spec_.fid(), directed, false);
 
     rpc::graph::GraphDefPb graph_def;
 
@@ -287,10 +339,15 @@ bl::result<void> GrapeInstance::modifyVertices(const rpc::GSParams& params) {
   // BOOST_LEAF_AUTO(nodes_json, params.Get<std::string>(rpc::NODES));
   std::string nodes_json = params.GetLargeAttr().chunk_list().items()[0].buffer();
   dynamic::Parse(nodes_json, nodes);
-  auto fragment =
-      std::static_pointer_cast<DynamicFragmentPoc>(wrapper->fragment());
-
-  fragment->ModifyVertices(nodes, common_attr, modify_type);
+  if (graph_type == rpc::graph::DYNAMIC_PROPERTY_POC) {
+    auto fragment =
+        std::static_pointer_cast<DynamicFragmentPoc>(wrapper->fragment());
+    fragment->ModifyVertices(nodes, common_attr, modify_type);
+  } else {
+    auto fragment =
+        std::static_pointer_cast<DynamicFragment>(wrapper->fragment());
+    fragment->ModifyVertices(nodes, common_attr, modify_type);
+  }
   return {};
 #else
   RETURN_GS_ERROR(vineyard::ErrorCode::kUnimplementedMethod,
@@ -307,7 +364,7 @@ bl::result<void> GrapeInstance::modifyEdges(const rpc::GSParams& params) {
                   object_manager_.GetObject<IFragmentWrapper>(graph_name));
   auto graph_type = wrapper->graph_def().graph_type();
 
-  if (graph_type != rpc::graph::DYNAMIC_PROPERTY) {
+  if (graph_type != rpc::graph::DYNAMIC_PROPERTY || graph_type != rpc::graph::DYNAMIC_PROPERTY_POC) {
     RETURN_GS_ERROR(
         vineyard::ErrorCode::kInvalidValueError,
         "GraphType must be DYNAMIC_PROPERTY, the origin graph type is: " +
@@ -325,9 +382,15 @@ bl::result<void> GrapeInstance::modifyEdges(const rpc::GSParams& params) {
   // BOOST_LEAF_AUTO(edges_json, params.Get<std::string>(rpc::EDGES));
   std::string edges_json = params.GetLargeAttr().chunk_list().items()[0].buffer();
   dynamic::Parse(edges_json, edges);
-  auto fragment =
-      std::static_pointer_cast<DynamicFragmentPoc>(wrapper->fragment());
-  fragment->ModifyEdges(edges, common_attr, modify_type, weight);
+  if (graph_type == rpc::graph::DYNAMIC_PROPERTY_POC) {
+    auto fragment =
+        std::static_pointer_cast<DynamicFragmentPoc>(wrapper->fragment());
+    fragment->ModifyEdges(edges, common_attr, modify_type, weight);
+  } else {
+    auto fragment =
+        std::static_pointer_cast<DynamicFragment>(wrapper->fragment());
+    fragment->ModifyEdges(edges, common_attr, modify_type, weight);
+  }
 #else
   RETURN_GS_ERROR(vineyard::ErrorCode::kUnimplementedMethod,
                   "GraphScope is built with NETWORKX=OFF, please recompile it "

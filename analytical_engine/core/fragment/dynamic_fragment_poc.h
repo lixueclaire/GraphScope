@@ -23,7 +23,7 @@ class DynamicFragmentPoc {
   using vertex_t = typename fragment_t::vertex_t;
   using edge_t = typename fragment_t::edge_t;
   //  using fid_t = typename fragment_t::fid_t;
-  using fid_t = int;
+  using fid_t = long unsigned int;
   using vertices_t = typename fragment_t::vertices_t;
   using adj_list_t = typename fragment_t::adj_list_t;
   using const_adj_list_t = typename fragment_t::const_adj_list_t;
@@ -141,7 +141,6 @@ class DynamicFragmentPoc {
                    const std::string weight) {
     {
       edata_t e_data;
-      vdata_t fake_data(rapidjson::kObjecteType);
       oid_t src, dst;
       vid_t src_gid, dst_gid;
       fid_t src_fid, dst_fid;
@@ -170,7 +169,7 @@ class DynamicFragmentPoc {
             mutation.vertices_to_add.emplace_back(src_gid);
           }
           if (dst_fid == fid() && !dst_existed) {
-            mutation.vertices_to_add.emplace_back(dst_gid, fake_data);
+            mutation.vertices_to_add.emplace_back(dst_gid);
           }
         } else {
           if (!vm_ptr_->GetGid(src_fid, src, src_gid) ||
