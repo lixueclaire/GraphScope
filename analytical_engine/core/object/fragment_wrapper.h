@@ -40,6 +40,7 @@
 #include "core/fragment/arrow_flattened_fragment.h"
 #include "core/fragment/dynamic_fragment_view.h"
 #include "core/fragment/dynamic_projected_fragment.h"
+#include "core/fragment/dynamic_fragment_poc.h"
 #include "core/fragment/fragment_reporter.h"
 #include "core/loader/arrow_fragment_loader.h"
 #include "core/object/gs_object.h"
@@ -781,6 +782,174 @@ class FragmentWrapper<DynamicFragment> : public IFragmentWrapper {
   bl::result<std::string> ReportGraph(const grape::CommSpec& comm_spec,
                                       const rpc::GSParams& params) override {
     DynamicFragmentReporter reporter(comm_spec);
+    return reporter.Report(fragment_, params);
+  }
+
+  bl::result<std::shared_ptr<IFragmentWrapper>> CopyGraph(
+      const grape::CommSpec& comm_spec, const std::string& dst_graph_name,
+      const std::string& copy_type) override {
+    // copy vertex map
+    auto ori_vm_ptr = fragment_->GetVertexMap();
+    auto new_vm_ptr =
+        std::make_shared<typename fragment_t::vertex_map_t>(comm_spec);
+    new_vm_ptr->SetPartitioner(ori_vm_ptr->GetPartitioner());
+    new_vm_ptr->Init();
+    std::vector<std::thread> copy_vm_threads(comm_spec.fnum());
+    for (size_t fid = 0; fid < comm_spec.fnum(); ++fid) {
+      copy_vm_threads[fid] = std::thread(
+          [&](size_t fid) {
+            typename fragment_t::oid_t oid;
+            typename fragment_t::vid_t gid{};
+            typename fragment_t::vid_t fvnum =
+                ori_vm_ptr->GetInnerVertexSize(fid);
+            for (typename fragment_t::vid_t lid = 0; lid < fvnum; lid++) {
+              ori_vm_ptr->GetOid(fid, lid, oid);
+              CHECK(new_vm_ptr->AddVertex(oid, gid));
+            }
+          },
+          fid);
+    }
+    for (auto& thrd : copy_vm_threads) {
+      thrd.join();
+    }
+    // copy fragment
+    auto dst_frag = std::make_shared<fragment_t>(new_vm_ptr);
+
+    dst_frag->CopyFrom(fragment_, copy_type);
+
+    auto dst_graph_def = graph_def_;
+    dst_graph_def.set_key(dst_graph_name);
+    auto wrapper = std::make_shared<FragmentWrapper<fragment_t>>(
+        dst_graph_name, dst_graph_def, dst_frag);
+    return std::dynamic_pointer_cast<IFragmentWrapper>(wrapper);
+  }
+
+  bl::result<std::shared_ptr<IFragmentWrapper>> ToDirected(
+      const grape::CommSpec& comm_spec,
+      const std::string& dst_graph_name) override {
+    // copy vertex map
+    auto ori_vm_ptr = fragment_->GetVertexMap();
+    auto new_vm_ptr =
+        std::make_shared<typename fragment_t::vertex_map_t>(comm_spec);
+    new_vm_ptr->SetPartitioner(ori_vm_ptr->GetPartitioner());
+    new_vm_ptr->Init();
+    std::vector<std::thread> copy_vm_threads(comm_spec.fnum());
+    for (size_t fid = 0; fid < comm_spec.fnum(); ++fid) {
+      copy_vm_threads[fid] = std::thread(
+          [&](size_t fid) {
+            typename fragment_t::oid_t oid;
+            typename fragment_t::vid_t gid{};
+            typename fragment_t::vid_t fvnum =
+                ori_vm_ptr->GetInnerVertexSize(fid);
+            for (typename fragment_t::vid_t lid = 0; lid < fvnum; lid++) {
+              ori_vm_ptr->GetOid(fid, lid, oid);
+              CHECK(new_vm_ptr->AddVertex(oid, gid));
+            }
+          },
+          fid);
+    }
+    for (auto& thrd : copy_vm_threads) {
+      thrd.join();
+    }
+    // copy fragment
+    auto dst_frag = std::make_shared<fragment_t>(new_vm_ptr);
+
+    dst_frag->ToDirectedFrom(fragment_);
+
+    auto dst_graph_def = graph_def_;
+    dst_graph_def.set_key(dst_graph_name);
+    auto wrapper = std::make_shared<FragmentWrapper<fragment_t>>(
+        dst_graph_name, dst_graph_def, dst_frag);
+    return std::dynamic_pointer_cast<IFragmentWrapper>(wrapper);
+  }
+
+  bl::result<std::shared_ptr<IFragmentWrapper>> ToUndirected(
+      const grape::CommSpec& comm_spec,
+      const std::string& dst_graph_name) override {
+    // copy vertex map
+    auto ori_vm_ptr = fragment_->GetVertexMap();
+    auto new_vm_ptr =
+        std::make_shared<typename fragment_t::vertex_map_t>(comm_spec);
+    new_vm_ptr->SetPartitioner(ori_vm_ptr->GetPartitioner());
+    new_vm_ptr->Init();
+    std::vector<std::thread> copy_vm_threads(comm_spec.fnum());
+    for (size_t fid = 0; fid < comm_spec.fnum(); ++fid) {
+      copy_vm_threads[fid] = std::thread(
+          [&](size_t fid) {
+            typename fragment_t::oid_t oid;
+            typename fragment_t::vid_t gid{};
+            typename fragment_t::vid_t fvnum =
+                ori_vm_ptr->GetInnerVertexSize(fid);
+            for (typename fragment_t::vid_t lid = 0; lid < fvnum; lid++) {
+              ori_vm_ptr->GetOid(fid, lid, oid);
+              CHECK(new_vm_ptr->AddVertex(oid, gid));
+            }
+          },
+          fid);
+    }
+    for (auto& thrd : copy_vm_threads) {
+      thrd.join();
+    }
+    // copy fragment
+    auto dst_frag = std::make_shared<fragment_t>(new_vm_ptr);
+
+    dst_frag->ToUndirectedFrom(fragment_);
+
+    auto dst_graph_def = graph_def_;
+    dst_graph_def.set_key(dst_graph_name);
+    auto wrapper = std::make_shared<FragmentWrapper<fragment_t>>(
+        dst_graph_name, dst_graph_def, dst_frag);
+    return std::dynamic_pointer_cast<IFragmentWrapper>(wrapper);
+  }
+
+  bl::result<std::shared_ptr<IFragmentWrapper>> CreateGraphView(
+      const grape::CommSpec& comm_spec, const std::string& view_graph_id,
+      const std::string& view_type) override {
+    auto frag_view = std::make_shared<fragment_view_t>(
+        fragment_.get(), parse_fragment_view_type(view_type));
+
+    auto dst_graph_def = graph_def_;
+    dst_graph_def.set_key(view_graph_id);
+    auto wrapper = std::make_shared<FragmentWrapper<fragment_t>>(
+        view_graph_id, dst_graph_def, frag_view);
+    return std::dynamic_pointer_cast<IFragmentWrapper>(wrapper);
+  }
+
+ private:
+  rpc::graph::GraphDefPb graph_def_;
+  std::shared_ptr<fragment_t> fragment_;
+};
+
+/**
+ * @brief A specialized FragmentWrapper for DynamicFragment.
+ * @tparam OID_T OID type
+ * @tparam VID_T VID type
+ */
+template <>
+class FragmentWrapper<grape::DynamicFragmentPoc> : public IFragmentWrapper {
+  using fragment_t = grape::DynamicFragmentPoc;
+  using fragment_view_t = DynamicFragmentViewPoc;
+
+ public:
+  FragmentWrapper(const std::string& id, rpc::graph::GraphDefPb graph_def,
+                  std::shared_ptr<fragment_t> fragment)
+      : IFragmentWrapper(id),
+        graph_def_(std::move(graph_def)),
+        fragment_(std::move(fragment)) {
+    CHECK_EQ(graph_def_.graph_type(), rpc::graph::DYNAMIC_PROPERTY_POC);
+  }
+
+  std::shared_ptr<void> fragment() const override {
+    return std::static_pointer_cast<void>(fragment_);
+  }
+
+  const rpc::graph::GraphDefPb& graph_def() const override {
+    return graph_def_;
+  }
+
+  bl::result<std::string> ReportGraph(const grape::CommSpec& comm_spec,
+                                      const rpc::GSParams& params) override {
+    DynamicFragmentPocReporter reporter(comm_spec);
     return reporter.Report(fragment_, params);
   }
 

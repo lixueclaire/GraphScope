@@ -1448,7 +1448,7 @@ class DynamicFragment {
     return vm_ptr_->GetGid(fid_, node, gid) && isAlive(gid & id_mask_);
   }
 
-  inline virtual bool HasEdge(const oid_t& u, const oid_t& v) {
+  inline virtual bool HasEdge(const oid_t& u, const oid_t& v) const {
     vid_t uid, vid;
     if (Oid2Gid(u, uid) && Oid2Gid(v, vid)) {
       vid_t ulid, vlid;
@@ -1521,6 +1521,7 @@ class DynamicFragment {
                    const dynamic::Value& common_attrs,
                    const rpc::ModifyType modify_type,
                    const std::string weight) {
+    double start = grape::GetCurrentTime();
     std::vector<internal_vertex_t> vertices;
     std::vector<edge_t> edges;
 
@@ -1571,10 +1572,13 @@ class DynamicFragment {
         }
       }
     }
+    LOG(INFO) << "Origin processing edges time: " << grape::GetCurrentTime() - start;
 
     switch (modify_type) {
     case rpc::NX_ADD_EDGES:
+      start = grape::GetCurrentTime();
       Insert(vertices, edges);
+      LOG(INFO) << "Origin insert edges time: " << grape::GetCurrentTime() - start;
       break;
     case rpc::NX_UPDATE_EDGES:
       Update(vertices, edges);

@@ -271,7 +271,7 @@ class Graph(_GraphBase):
     def to_undirected_class(self):
         return Graph
 
-    def __init__(self, incoming_graph_data=None, default_label=None, **attr):
+    def __init__(self, incoming_graph_data=None, default_label=None, impl="origin", **attr):
         """Initialize a graph with graph, edges, name, or graph attributes
 
         Parameters
@@ -332,6 +332,8 @@ class Graph(_GraphBase):
         self._remove_node_cache = []
         self._remove_edge_cache = []
 
+        if impl == "new":
+            self._graph_type = graph_def_pb2.DYNAMIC_PROPERTY_POC
         create_empty_in_engine = attr.pop(
             "create_empty_in_engine", True
         )  # a hidden parameter
@@ -1433,7 +1435,8 @@ class Graph(_GraphBase):
         >>> G.get_edge_data("a", "b", default=0)  # edge not in graph, return 0
         0
         """
-        if self.has_edge(u, v):
+        # if self.has_edge(u, v):
+        if True:
             if self.graph_type == graph_def_pb2.ARROW_PROPERTY:
                 u = self._convert_to_label_id_tuple(u)
                 v = self._convert_to_label_id_tuple(v)
@@ -1929,7 +1932,9 @@ class Graph(_GraphBase):
                 lid=location[1],
                 label_id=location[2],
             )
-        return op.eval()
+        ret = op.eval()
+        print("batch get nodes:", ret)
+        return ret
 
     @parse_ret_as_dict
     def _get_nbrs(self, n, report_type=types_pb2.SUCCS_BY_NODE):

@@ -23,6 +23,8 @@
 #include <vector>
 
 #include "core/fragment/dynamic_fragment.h"
+#include "core/fragment/dynamic_fragment_poc.h"
+
 
 namespace gs {
 
@@ -256,7 +258,7 @@ class DynamicFragmentView : public DynamicFragment {
     return fragment_->HasNode(node);
   }
 
-  inline bool HasEdge(const oid_t& u, const oid_t& v) {
+  inline bool HasEdge(const oid_t& u, const oid_t& v) const {
     if (view_type_ == FragmentViewType::REVERSED) {
       return fragment_->HasEdge(v, u);
     }
@@ -310,6 +312,200 @@ class DynamicFragmentView : public DynamicFragment {
 
   dynamic_fragment_impl::NbrMapSpace<edata_t>& inner_edge_space() {
     return fragment_->inner_edge_space();
+  }
+
+ private:
+  fragment_t* fragment_;
+  FragmentViewType view_type_;
+};
+
+
+class DynamicFragmentViewPoc : public grape::DynamicFragmentPoc {
+ public:
+  using fragment_t = grape::DynamicFragmentPoc;
+
+  explicit DynamicFragmentViewPoc(fragment_t* frag,
+                               const FragmentViewType& view_type)
+      : grape::FragmentBase<oid_t, vid_t, vdata_t, edata_t, traits_t>(frag->GetVertexMap()), fragment_(frag), view_type_(view_type) {}
+
+  virtual ~DynamicFragmentViewPoc() = default;
+
+  inline fid_t fid() const { return fragment_->fid(); }
+
+  inline fid_t fnum() const { return fragment_->fnum(); }
+
+  inline size_t selfloops_num() const { return fragment_->selfloops_num(); }
+
+  inline bool directed() const {
+    switch (view_type_) {
+    case FragmentViewType::DIRECTED: {
+      return true;
+    }
+    case FragmentViewType::UNDIRECTED: {
+      return false;
+    }
+    default:
+      return fragment_->directed();
+    }
+
+    return fragment_->directed();
+  }
+
+  inline size_t GetEdgeNum() const { return fragment_->GetEdgeNum(); }
+
+  inline vid_t GetVerticesNum() const { return fragment_->GetVerticesNum(); }
+
+  size_t GetTotalVerticesNum() const {
+    return fragment_->GetTotalVerticesNum();
+  }
+
+  inline vertices_t Vertices() const { return fragment_->Vertices(); }
+
+  inline inner_vertices_t InnerVertices() const {
+    return fragment_->InnerVertices();
+  }
+
+  inline outer_vertices_t OuterVertices() const {
+    return fragment_->OuterVertices();
+  }
+
+  inline bool GetVertex(const oid_t& oid, vertex_t& v) const {
+    return fragment_->GetVertex(oid, v);
+  }
+
+  inline oid_t GetId(const vertex_t& v) const { return fragment_->GetId(v); }
+
+  inline fid_t GetFragId(const vertex_t& u) const {
+    return fragment_->GetFragId(u);
+  }
+
+  inline const vdata_t& GetData(const vertex_t& v) const {
+    return fragment_->GetData(v);
+  }
+
+  inline void SetData(const vertex_t& v, const vdata_t& val) {
+    return fragment_->SetData(v, val);
+  }
+
+  inline bool HasChild(const vertex_t& v) const {
+    return fragment_->HasChild(v);
+  }
+
+  inline bool HasParent(const vertex_t& v) const {
+    return fragment_->HasParent(v);
+  }
+
+  inline int GetLocalOutDegree(const vertex_t& v) const {
+    if (view_type_ == FragmentViewType::REVERSED) {
+      return fragment_->GetLocalInDegree(v);
+    }
+    return fragment_->GetLocalOutDegree(v);
+  }
+
+  inline int GetLocalInDegree(const vertex_t& v) const {
+    if (view_type_ == FragmentViewType::REVERSED ||
+        view_type_ == FragmentViewType::DIRECTED) {
+      return fragment_->GetLocalOutDegree(v);
+    }
+    return fragment_->GetLocalInDegree(v);
+  }
+
+  inline bool Gid2Vertex(const vid_t& gid, vertex_t& v) const {
+    return fragment_->Gid2Vertex(gid, v);
+  }
+
+  inline vid_t Vertex2Gid(const vertex_t& v) const {
+    return fragment_->Vertex2Gid(v);
+  }
+
+  inline vid_t GetInnerVerticesNum() const {
+    return fragment_->GetInnerVerticesNum();
+  }
+
+  inline vid_t GetOuterVerticesNum() const {
+    return fragment_->GetOuterVerticesNum();
+  }
+
+  inline bool IsInnerVertex(const vertex_t& v) const {
+    return fragment_->IsInnerVertex(v);
+  }
+
+  inline bool IsOuterVertex(const vertex_t& v) const {
+    return fragment_->IsOuterVertex(v);
+  }
+
+  inline bool GetInnerVertex(const oid_t& oid, vertex_t& v) const {
+    return fragment_->GetInnerVertex(oid, v);
+  }
+
+  inline oid_t GetInnerVertexId(const vertex_t& v) const {
+    return fragment_->GetInnerVertexId(v);
+  }
+
+  inline oid_t GetOuterVertexId(const vertex_t& v) const {
+    return fragment_->GetOuterVertexId(v);
+  }
+
+  inline bool InnerVertexGid2Vertex(const vid_t& gid, vertex_t& v) const {
+    return fragment_->InnerVertexGid2Vertex(gid, v);
+  }
+
+  inline bool OuterVertexGid2Vertex(const vid_t& gid, vertex_t& v) const {
+    return fragment_->OuterVertexGid2Vertex(gid, v);
+  }
+
+  inline vid_t GetOuterVertexGid(const vertex_t& v) const {
+    return fragment_->GetOuterVertexGid(v);
+  }
+
+  inline vid_t GetInnerVertexGid(const vertex_t& v) const {
+    return fragment_->GetInnerVertexGid(v);
+  }
+
+  inline adj_list_t GetOutgoingAdjList(const vertex_t& v) {
+    if (view_type_ == FragmentViewType::REVERSED) {
+      return fragment_->GetIncomingAdjList(v);
+    }
+    return fragment_->GetOutgoingAdjList(v);
+  }
+
+  inline adj_list_t GetIncomingAdjList(const vertex_t& v) {
+    if (view_type_ == FragmentViewType::REVERSED ||
+        view_type_ == FragmentViewType::DIRECTED) {
+      return fragment_->GetOutgoingAdjList(v);
+    }
+    return fragment_->GetIncomingAdjList(v);
+  }
+
+  inline const std::vector<vertex_t>& MirrorVertices(fid_t fid) const {
+    return fragment_->MirrorVertices(fid);
+  }
+
+  void PrepareToRunApp(const grape::CommSpec& comm_spec,
+                       grape::PrepareConf conf) {
+    fragment_->PrepareToRunApp(comm_spec, conf);
+  }
+
+  inline bool HasNode(const oid_t& node) const {
+    return fragment_->HasNode(node);
+  }
+
+  inline bool HasEdge(const oid_t& u, const oid_t& v) const {
+    if (view_type_ == FragmentViewType::REVERSED) {
+      return fragment_->HasEdge(v, u);
+    }
+    return fragment_->HasEdge(u, v);
+  }
+
+  inline bool GetEdgeData(const oid_t& u, const oid_t& v, edata_t& ret) const {
+    if (view_type_ == FragmentViewType::REVERSED) {
+      return fragment_->GetEdgeData(v, u, ret);
+    }
+    return fragment_->GetEdgeData(u, v, ret);
+  }
+
+  inline bool IsAliveInnerVertex(const vertex_t& v) const {
+    return fragment_->IsAliveInnerVertex(v);
   }
 
  private:

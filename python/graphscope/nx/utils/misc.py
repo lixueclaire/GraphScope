@@ -18,10 +18,10 @@
 
 
 import functools
-import json
 
 import networkx.utils.misc
 import numpy as np
+import json
 
 from graphscope.client.session import get_session_by_id
 from graphscope.framework import dag_utils

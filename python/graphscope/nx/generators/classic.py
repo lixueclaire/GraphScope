@@ -204,7 +204,7 @@ def dorogovtsev_goltsev_mendes_graph(n, create_using=None):
 
 
 @nodes_or_number(0)
-def empty_graph(n=0, create_using=None, default=nx.Graph, **kw):
+def empty_graph(n=0, create_using=None, impl="origin", default=nx.Graph, **kw):
     """Returns the empty graph with n nodes and zero edges.
 
     Parameters
@@ -239,14 +239,14 @@ def empty_graph(n=0, create_using=None, default=nx.Graph, **kw):
 
     """
     if create_using is None:
-        G = default(**kw)
+        G = default(impl=impl, **kw)
     elif hasattr(create_using, "_adj"):
         # create_using is a NetworkX style Graph
         create_using.clear()
         G = create_using
     else:
         # try create_using as constructor
-        G = create_using(**kw)
+        G = create_using(impl=impl, **kw)
 
     n_name, nodes = n
     G.add_nodes_from(nodes)

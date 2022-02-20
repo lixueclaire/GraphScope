@@ -264,6 +264,12 @@ def bytes_to_attr(s: bytes) -> attr_value_pb2.AttrValue:
     check_argument(isinstance(s, bytes))
     return attr_value_pb2.AttrValue(s=s)
 
+def bytes_to_large_attr(s: bytes) -> attr_value_pb2.LargeAttrValue:
+    check_argument(isinstance(s, bytes))
+    large_attr = attr_value_pb2.LargeAttrValue()
+    chunk = attr_value_pb2.Chunk(buffer=s)
+    large_attr.chunk_list.items.append(chunk)
+    return large_attr
 
 def bytes_to_large_attr(s: bytes) -> attr_value_pb2.LargeAttrValue:
     check_argument(isinstance(s, bytes))
