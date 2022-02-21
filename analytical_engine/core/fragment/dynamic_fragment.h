@@ -1572,13 +1572,15 @@ class DynamicFragment {
         }
       }
     }
-    LOG(INFO) << "Origin processing edges time: " << grape::GetCurrentTime() - start;
+    LOG(INFO) << "Origin processing edges time: "
+              << grape::GetCurrentTime() - start;
 
     switch (modify_type) {
     case rpc::NX_ADD_EDGES:
       start = grape::GetCurrentTime();
       Insert(vertices, edges);
-      LOG(INFO) << "Origin insert edges time: " << grape::GetCurrentTime() - start;
+      LOG(INFO) << "Origin insert edges time: "
+                << grape::GetCurrentTime() - start;
       break;
     case rpc::NX_UPDATE_EDGES:
       Update(vertices, edges);

@@ -25,7 +25,6 @@
 #include "core/fragment/dynamic_fragment.h"
 #include "core/fragment/dynamic_fragment_poc.h"
 
-
 namespace gs {
 
 enum class FragmentViewType { REVERSED, DIRECTED, UNDIRECTED };
@@ -319,14 +318,16 @@ class DynamicFragmentView : public DynamicFragment {
   FragmentViewType view_type_;
 };
 
-
 class DynamicFragmentViewPoc : public grape::DynamicFragmentPoc {
  public:
   using fragment_t = grape::DynamicFragmentPoc;
 
   explicit DynamicFragmentViewPoc(fragment_t* frag,
-                               const FragmentViewType& view_type)
-      : grape::FragmentBase<oid_t, vid_t, vdata_t, edata_t, traits_t>(frag->GetVertexMap()), fragment_(frag), view_type_(view_type) {}
+                                  const FragmentViewType& view_type)
+      : grape::FragmentBase<oid_t, vid_t, vdata_t, edata_t, traits_t>(
+            frag->GetVertexMap()),
+        fragment_(frag),
+        view_type_(view_type) {}
 
   virtual ~DynamicFragmentViewPoc() = default;
 

@@ -24,8 +24,9 @@ limitations under the License.
 namespace grape {
 
 template <>
-class DeMutableCSR<vineyard::property_graph_types::VID_TYPE,
-      Nbr<vineyard::property_graph_types::VID_TYPE, gs::dynamic::Value>> {
+class DeMutableCSR<
+    vineyard::property_graph_types::VID_TYPE,
+    Nbr<vineyard::property_graph_types::VID_TYPE, gs::dynamic::Value>> {
  public:
   using VID_T = vineyard::property_graph_types::VID_TYPE;
   using EDATA_T = gs::dynamic::Value;
@@ -38,7 +39,8 @@ class DeMutableCSR<vineyard::property_graph_types::VID_TYPE,
 
   DeMutableCSR() {}
 
-  DeMutableCSR(vid_t from, vid_t to, bool dedup = false, bool enable_tail = false)
+  DeMutableCSR(vid_t from, vid_t to, bool dedup = false,
+               bool enable_tail = false)
       : min_id_(from),
         max_id_(to),
         max_head_id_(from),
@@ -624,9 +626,10 @@ class DeMutableCSR<vineyard::property_graph_types::VID_TYPE,
   MutableCSR<VID_T, Nbr<VID_T, EDATA_T>> head_, tail_;
 };
 
-
 template <>
-class DeMutableCSRBuilder<vineyard::property_graph_types::VID_TYPE, Nbr<vineyard::property_graph_types::VID_TYPE, gs::dynamic::Value>> {
+class DeMutableCSRBuilder<
+    vineyard::property_graph_types::VID_TYPE,
+    Nbr<vineyard::property_graph_types::VID_TYPE, gs::dynamic::Value>> {
   using VID_T = vineyard::property_graph_types::VID_TYPE;
   using EDATA_T = gs::dynamic::Value;
   using vid_t = VID_T;
@@ -726,7 +729,6 @@ class DeMutableCSRBuilder<vineyard::property_graph_types::VID_TYPE, Nbr<vineyard
 
   MutableCSRBuilder<VID_T, Nbr<VID_T, EDATA_T>> head_builder_, tail_builder_;
 };
-
 
 }  // namespace grape
 

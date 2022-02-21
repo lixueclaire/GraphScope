@@ -28,10 +28,10 @@
 #include "grape/communication/communicator.h"
 #include "grape/worker/comm_spec.h"
 
+#include "core/fragment/dynamic_fragment_poc.h"
 #include "core/server/rpc_utils.h"
 #include "core/utils/convert_utils.h"
 #include "proto/graphscope/proto/types.pb.h"
-#include "core/fragment/dynamic_fragment_poc.h"
 
 namespace gs {
 /**

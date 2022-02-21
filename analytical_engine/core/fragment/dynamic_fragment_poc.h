@@ -6,10 +6,10 @@
 #include "grape/fragment/basic_fragment_mutator.h"
 #include "grape/fragment/csr_edgecut_fragment_base.h"
 
+#include "core/fragment/de_mutable_csr.h"
 #include "core/object/dynamic.h"
 #include "core/utils/partitioner.h"
 #include "core/utils/vertex_array.h"
-#include "core/fragment/de_mutable_csr.h"
 
 namespace grape {
 
@@ -38,11 +38,10 @@ struct DynamicFragmentTraits {
 };
 
 class DynamicFragmentPoc
-  : public CSREdgecutFragmentBase<gs::dynamic::Value,
-      vineyard::property_graph_types::VID_TYPE, gs::dynamic::Value,
-      gs::dynamic::Value, DynamicFragmentTraits>
-{
-public:
+    : public CSREdgecutFragmentBase<
+          gs::dynamic::Value, vineyard::property_graph_types::VID_TYPE,
+          gs::dynamic::Value, gs::dynamic::Value, DynamicFragmentTraits> {
+ public:
   using traits_t = DynamicFragmentTraits;
   using OID_T = gs::dynamic::Value;
   using VID_T = vineyard::property_graph_types::VID_TYPE;
@@ -84,7 +83,8 @@ public:
   template <typename T>
   using vertex_array_t = VertexArray<vertices_t, T>;
 
-  DynamicFragmentPoc() : FragmentBase<OID_T, VID_T, VDATA_T, EDATA_T, traits_t>(NULL) {}
+  DynamicFragmentPoc()
+      : FragmentBase<OID_T, VID_T, VDATA_T, EDATA_T, traits_t>(NULL) {}
   explicit DynamicFragmentPoc(std::shared_ptr<vertex_map_t> vm_ptr)
       : FragmentBase<OID_T, VID_T, VDATA_T, EDATA_T, traits_t>(vm_ptr) {}
   virtual ~DynamicFragmentPoc() = default;
@@ -149,7 +149,8 @@ public:
 
     this->inner_vertices_.SetRange(0, ivnum_, alive_ivnum_, &iv_alive_);
     this->outer_vertices_.SetRange(id_parser_.max_local_id() - ovnum_,
-                                   id_parser_.max_local_id(), alive_ovnum_, &ov_alive_, true);
+                                   id_parser_.max_local_id(), alive_ovnum_,
+                                   &ov_alive_, true);
     this->vertices_.SetRange(0, ivnum_, id_parser_.max_local_id() - ovnum_,
                              id_parser_.max_local_id(), &iv_alive_, &ov_alive_);
     initOuterVerticesOfFragment();
@@ -178,11 +179,11 @@ public:
   void Init(fid_t fid, bool directed) {
     std::vector<internal_vertex_t> empty_vertices;
     std::vector<edge_t> empty_edges;
-    directed ? Init(fid, directed, empty_vertices, empty_edges, grape::LoadStrategy::kBothOutIn)
-             : Init(fid, directed, empty_vertices, empty_edges, grape::LoadStrategy::kOnlyOut);
+    directed ? Init(fid, directed, empty_vertices, empty_edges,
+                    grape::LoadStrategy::kBothOutIn)
+             : Init(fid, directed, empty_vertices, empty_edges,
+                    grape::LoadStrategy::kOnlyOut);
   }
-
-
 
   using base_t::Gid2Lid;
   using base_t::ie_;
@@ -232,7 +233,8 @@ public:
           iv_alive_[v.GetValue()] = false;
           --alive_ivnum_;
 
-          if (selfloops_vertices_.find(v.GetValue()) != selfloops_vertices_.end()) {
+          if (selfloops_vertices_.find(v.GetValue()) !=
+              selfloops_vertices_.end()) {
             selfloops_vertices_.erase(v.GetValue());
             --selfloops_num_;
           }
@@ -269,10 +271,10 @@ public:
     {
       // vid_t ivnum = this->GetInnerVerticesNum();
       // vid_t ovnum = this->GetOuterVerticesNum();
-      vid_t ivnum =
-        this->inner_vertices_.end_value() - this->inner_vertices_.begin_value();
-      vid_t ovnum =
-        this->outer_vertices_.end_value() - this->outer_vertices_.begin_value();
+      vid_t ivnum = this->inner_vertices_.end_value() -
+                    this->inner_vertices_.begin_value();
+      vid_t ovnum = this->outer_vertices_.end_value() -
+                    this->outer_vertices_.begin_value();
       auto& edges_to_add = mutation.edges_to_add;
       static constexpr VID_T invalid_vid = std::numeric_limits<VID_T>::max();
       if (load_strategy_ == LoadStrategy::kOnlyIn) {
@@ -377,7 +379,8 @@ public:
     // The ranges must be set after alive_ivnum_ and alive_ovnum_
     this->inner_vertices_.SetRange(0, this->ivnum_, alive_ivnum_, &iv_alive_);
     this->outer_vertices_.SetRange(id_parser_.max_local_id() - this->ovnum_,
-                                   id_parser_.max_local_id(), alive_ovnum_, &ov_alive_, true);
+                                   id_parser_.max_local_id(), alive_ovnum_,
+                                   &ov_alive_, true);
     this->vertices_.SetRange(0, this->ivnum_,
                              id_parser_.max_local_id() - this->ovnum_,
                              id_parser_.max_local_id(), &iv_alive_, &ov_alive_);
@@ -610,11 +613,13 @@ public:
           bool dst_added = vm_ptr_->AddVertex(dst, dst_gid);
           if (src_fid == fid() && src_added) {
             vdata_t empty_data(rapidjson::kObjectType);
-            mutation.vertices_to_add.emplace_back(src_gid, std::move(empty_data));
+            mutation.vertices_to_add.emplace_back(src_gid,
+                                                  std::move(empty_data));
           }
           if (dst_fid == fid() && dst_added) {
             vdata_t empty_data(rapidjson::kObjectType);
-            mutation.vertices_to_add.emplace_back(dst_gid, std::move(empty_data));
+            mutation.vertices_to_add.emplace_back(dst_gid,
+                                                  std::move(empty_data));
           }
         } else {
           if (!vm_ptr_->GetGid(src_fid, src, src_gid) ||
@@ -666,9 +671,7 @@ public:
     Init(fid_, directed_);
   }
 
-  void ClearEdges() {
-    return;
-  }
+  void ClearEdges() { return; }
 
   void CopyFrom(std::shared_ptr<DynamicFragmentPoc> other,
                 const std::string& copy_type = "identical") {
@@ -676,14 +679,10 @@ public:
   }
 
   // generate directed graph from orignal undirected graph.
-  void ToDirectedFrom(std::shared_ptr<DynamicFragmentPoc> origin) {
-    return;
-  }
+  void ToDirectedFrom(std::shared_ptr<DynamicFragmentPoc> origin) { return; }
 
   // generate undirected graph from original directed graph.
-  void ToUndirectedFrom(std::shared_ptr<DynamicFragmentPoc> origin) {
-    return;
-  }
+  void ToUndirectedFrom(std::shared_ptr<DynamicFragmentPoc> origin) { return; }
 
   // induce a subgraph that contains the induced_vertices and the edges between
   // those vertices or a edge subgraph that contains the induced_edges and the
@@ -715,7 +714,8 @@ public:
         auto end = oe_.get_end(ulid);
         // TODO: binary search
         auto iter = std::find_if(begin, end, [&vlid](const auto& val) {
-                                 return val.neighbor.GetValue() == vlid; });
+          return val.neighbor.GetValue() == vlid;
+        });
         if (iter != end) {
           return true;
         }
@@ -735,7 +735,8 @@ public:
         auto end = oe_.get_end(ulid);
         // TODO: binary search
         auto iter = std::find_if(begin, end, [&vlid](const auto& val) {
-                                 return val.neighbor.GetValue() == vlid; });
+          return val.neighbor.GetValue() == vlid;
+        });
         if (iter != end) {
           data = iter->data;
           return true;
@@ -905,8 +906,10 @@ public:
         // src is inner vertex;
         auto begin = oe_.get_begin(e.src);
         auto end = oe_.get_end(e.src);
-        auto iter = std::find_if(begin, end, [&e](const auto& val) { return val.neighbor.GetValue() == e.dst; });
-         if (iter != end) {
+        auto iter = std::find_if(begin, end, [&e](const auto& val) {
+          return val.neighbor.GetValue() == e.dst;
+        });
+        if (iter != end) {
           iter->data.Update(e.edata);
         } else {
           oe_.add_edge(e);
@@ -925,7 +928,8 @@ public:
         auto begin = ie_.get_begin(e.dst);
         auto end = ie_.get_end(e.dst);
         auto iter = std::find_if(begin, end, [&e](const auto& val) {
-                                 return val.neighbor.GetValue() == e.src; });
+          return val.neighbor.GetValue() == e.src;
+        });
         if (iter != end) {
           iter->data.Update(e.edata);
         } else {
@@ -940,8 +944,9 @@ public:
         auto begin = oe_.get_begin(e.src);
         auto end = oe_.get_end(e.src);
         auto iter = std::find_if(begin, end, [&e](const auto& val) {
-                                 return val.neighbor.GetValue() == e.dst; });
-         if (iter != end) {
+          return val.neighbor.GetValue() == e.dst;
+        });
+        if (iter != end) {
           iter->data.Update(e.edata);
         } else {
           oe_.add_edge(e);
@@ -960,7 +965,8 @@ public:
         auto begin = oe_.get_begin(e.dst);
         auto end = oe_.get_end(e.dst);
         auto iter = std::find_if(begin, end, [&e](const auto& val) {
-                                 return val.neighbor.GetValue() == e.src; });
+          return val.neighbor.GetValue() == e.src;
+        });
         if (iter != end) {
           iter->data.Update(e.edata);
         } else {
@@ -976,10 +982,10 @@ public:
   using base_t::ivnum_;
   VID_T ovnum_;
   VID_T alive_ivnum_, alive_ovnum_;
+  using base_t::directed_;
   using base_t::fid_;
   using base_t::fnum_;
   using base_t::id_parser_;
-  using base_t::directed_;
   LoadStrategy load_strategy_;
 
   ska::flat_hash_map<VID_T, VID_T> ovg2i_;
@@ -997,6 +1003,6 @@ public:
   std::set<vid_t> selfloops_vertices_;
 };
 
-} // namespace grape
+}  // namespace grape
 
 #endif

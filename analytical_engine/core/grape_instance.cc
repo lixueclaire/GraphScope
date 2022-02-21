@@ -328,7 +328,8 @@ bl::result<void> GrapeInstance::modifyVertices(const rpc::GSParams& params) {
                   object_manager_.GetObject<IFragmentWrapper>(graph_name));
   auto graph_type = wrapper->graph_def().graph_type();
 
-  if (graph_type != rpc::graph::DYNAMIC_PROPERTY && graph_type != rpc::graph::DYNAMIC_PROPERTY_POC) {
+  if (graph_type != rpc::graph::DYNAMIC_PROPERTY &&
+      graph_type != rpc::graph::DYNAMIC_PROPERTY_POC) {
     RETURN_GS_ERROR(
         vineyard::ErrorCode::kInvalidValueError,
         "GraphType must be DYNAMIC_PROPERTY, the origin graph type is:  " +
@@ -344,8 +345,8 @@ bl::result<void> GrapeInstance::modifyVertices(const rpc::GSParams& params) {
       params.GetLargeAttr().chunk_list().items()[0].buffer();
   dynamic::Parse(nodes_json, nodes);
   if (graph_type == rpc::graph::DYNAMIC_PROPERTY_POC) {
-    auto fragment =
-        std::static_pointer_cast<grape::DynamicFragmentPoc>(wrapper->fragment());
+    auto fragment = std::static_pointer_cast<grape::DynamicFragmentPoc>(
+        wrapper->fragment());
     fragment->ModifyVertices(nodes, common_attr, modify_type);
   } else {
     auto fragment =
@@ -368,7 +369,8 @@ bl::result<void> GrapeInstance::modifyEdges(const rpc::GSParams& params) {
                   object_manager_.GetObject<IFragmentWrapper>(graph_name));
   auto graph_type = wrapper->graph_def().graph_type();
 
-  if (graph_type != rpc::graph::DYNAMIC_PROPERTY && graph_type != rpc::graph::DYNAMIC_PROPERTY_POC) {
+  if (graph_type != rpc::graph::DYNAMIC_PROPERTY &&
+      graph_type != rpc::graph::DYNAMIC_PROPERTY_POC) {
     RETURN_GS_ERROR(
         vineyard::ErrorCode::kInvalidValueError,
         "GraphType must be DYNAMIC_PROPERTY, the origin graph type is: " +
@@ -387,8 +389,8 @@ bl::result<void> GrapeInstance::modifyEdges(const rpc::GSParams& params) {
   dynamic::Parse(edges_json, edges);
   if (graph_type == rpc::graph::DYNAMIC_PROPERTY_POC) {
     LOG(INFO) << "Begin Poc ModifyEdges.";
-    auto fragment =
-        std::static_pointer_cast<grape::DynamicFragmentPoc>(wrapper->fragment());
+    auto fragment = std::static_pointer_cast<grape::DynamicFragmentPoc>(
+        wrapper->fragment());
     double start = grape::GetCurrentTime();
     fragment->ModifyEdges(edges, common_attr, modify_type, weight);
     LOG(INFO) << "Poc ModifyEdges time: " << grape::GetCurrentTime() - start;
@@ -934,72 +936,74 @@ bl::result<rpc::graph::GraphDefPb> GrapeInstance::induceSubGraph(
   }
 
   if (graph_type == rpc::graph::DYNAMIC_PROPERTY) {
-  auto fragment =
-      std::static_pointer_cast<DynamicFragment>(src_wrapper->fragment());
+    auto fragment =
+        std::static_pointer_cast<DynamicFragment>(src_wrapper->fragment());
 
-  auto sub_vm_ptr =
-      std::make_shared<typename DynamicFragment::vertex_map_t>(comm_spec_);
-  sub_vm_ptr->Init();
-  {
-    typename DynamicFragment::vertex_map_t::partitioner_t partitioner(
-        comm_spec_.fnum());
-    sub_vm_ptr->SetPartitioner(partitioner);
-  }
-  grape::Communicator comm;
-  comm.InitCommunicator(comm_spec_.comm());
-  typename DynamicFragment::vid_t gid;
-  for (const auto& v : induced_vertices) {
-    bool alive_in_frag = fragment->HasNode(v);
-    bool alive = false;
-    comm.Sum(alive_in_frag, alive);
-    if (alive) {
-      sub_vm_ptr->AddVertex(v, gid);
+    auto sub_vm_ptr =
+        std::make_shared<typename DynamicFragment::vertex_map_t>(comm_spec_);
+    sub_vm_ptr->Init();
+    {
+      typename DynamicFragment::vertex_map_t::partitioner_t partitioner(
+          comm_spec_.fnum());
+      sub_vm_ptr->SetPartitioner(partitioner);
     }
-  }
+    grape::Communicator comm;
+    comm.InitCommunicator(comm_spec_.comm());
+    typename DynamicFragment::vid_t gid;
+    for (const auto& v : induced_vertices) {
+      bool alive_in_frag = fragment->HasNode(v);
+      bool alive = false;
+      comm.Sum(alive_in_frag, alive);
+      if (alive) {
+        sub_vm_ptr->AddVertex(v, gid);
+      }
+    }
 
-  auto sub_graph_def = src_wrapper->graph_def();
-  sub_graph_def.set_key(sub_graph_name);
-  auto sub_frag = std::make_shared<DynamicFragment>(sub_vm_ptr);
-  sub_frag->InduceSubgraph(fragment, induced_vertices, induced_edges);
+    auto sub_graph_def = src_wrapper->graph_def();
+    sub_graph_def.set_key(sub_graph_name);
+    auto sub_frag = std::make_shared<DynamicFragment>(sub_vm_ptr);
+    sub_frag->InduceSubgraph(fragment, induced_vertices, induced_edges);
 
-  auto wrapper = std::make_shared<FragmentWrapper<DynamicFragment>>(
-      sub_graph_name, sub_graph_def, sub_frag);
+    auto wrapper = std::make_shared<FragmentWrapper<DynamicFragment>>(
+        sub_graph_name, sub_graph_def, sub_frag);
 
-  BOOST_LEAF_CHECK(object_manager_.PutObject(wrapper));
-  return wrapper->graph_def();
+    BOOST_LEAF_CHECK(object_manager_.PutObject(wrapper));
+    return wrapper->graph_def();
   } else {
-  auto fragment =
-      std::static_pointer_cast<grape::DynamicFragmentPoc>(src_wrapper->fragment());
+    auto fragment = std::static_pointer_cast<grape::DynamicFragmentPoc>(
+        src_wrapper->fragment());
 
-  auto sub_vm_ptr =
-      std::make_shared<typename grape::DynamicFragmentPoc::vertex_map_t>(comm_spec_);
-  sub_vm_ptr->Init();
-  {
-    typename grape::DynamicFragmentPoc::vertex_map_t::partitioner_t partitioner(comm_spec_.fnum());
-    sub_vm_ptr->SetPartitioner(partitioner);
-  }
-  grape::Communicator comm;
-  comm.InitCommunicator(comm_spec_.comm());
-  typename grape::DynamicFragmentPoc::vid_t gid;
-  for (const auto& v : induced_vertices) {
-    bool alive_in_frag = fragment->HasNode(v);
-    bool alive = false;
-    comm.Sum(alive_in_frag, alive);
-    if (alive) {
-      sub_vm_ptr->AddVertex(v, gid);
+    auto sub_vm_ptr =
+        std::make_shared<typename grape::DynamicFragmentPoc::vertex_map_t>(
+            comm_spec_);
+    sub_vm_ptr->Init();
+    {
+      typename grape::DynamicFragmentPoc::vertex_map_t::partitioner_t
+          partitioner(comm_spec_.fnum());
+      sub_vm_ptr->SetPartitioner(partitioner);
     }
-  }
+    grape::Communicator comm;
+    comm.InitCommunicator(comm_spec_.comm());
+    typename grape::DynamicFragmentPoc::vid_t gid;
+    for (const auto& v : induced_vertices) {
+      bool alive_in_frag = fragment->HasNode(v);
+      bool alive = false;
+      comm.Sum(alive_in_frag, alive);
+      if (alive) {
+        sub_vm_ptr->AddVertex(v, gid);
+      }
+    }
 
-  auto sub_graph_def = src_wrapper->graph_def();
-  sub_graph_def.set_key(sub_graph_name);
-  auto sub_frag = std::make_shared<grape::DynamicFragmentPoc>(sub_vm_ptr);
-  sub_frag->InduceSubgraph(fragment, induced_vertices, induced_edges);
+    auto sub_graph_def = src_wrapper->graph_def();
+    sub_graph_def.set_key(sub_graph_name);
+    auto sub_frag = std::make_shared<grape::DynamicFragmentPoc>(sub_vm_ptr);
+    sub_frag->InduceSubgraph(fragment, induced_vertices, induced_edges);
 
-  auto wrapper = std::make_shared<FragmentWrapper<grape::DynamicFragmentPoc>>(
-      sub_graph_name, sub_graph_def, sub_frag);
+    auto wrapper = std::make_shared<FragmentWrapper<grape::DynamicFragmentPoc>>(
+        sub_graph_name, sub_graph_def, sub_frag);
 
-  BOOST_LEAF_CHECK(object_manager_.PutObject(wrapper));
-  return wrapper->graph_def();
+    BOOST_LEAF_CHECK(object_manager_.PutObject(wrapper));
+    return wrapper->graph_def();
   }
 }
 #endif  // NETWORKX
@@ -1011,7 +1015,8 @@ bl::result<void> GrapeInstance::clearGraph(const rpc::GSParams& params) {
                   object_manager_.GetObject<IFragmentWrapper>(graph_name));
   auto graph_type = wrapper->graph_def().graph_type();
 
-  if (graph_type != rpc::graph::DYNAMIC_PROPERTY && graph_type != rpc::graph::DYNAMIC_PROPERTY_POC) {
+  if (graph_type != rpc::graph::DYNAMIC_PROPERTY &&
+      graph_type != rpc::graph::DYNAMIC_PROPERTY_POC) {
     RETURN_GS_ERROR(
         vineyard::ErrorCode::kInvalidValueError,
         "GraphType must be DYNAMIC_PROPERTY, the origin graph type is: " +
@@ -1020,28 +1025,29 @@ bl::result<void> GrapeInstance::clearGraph(const rpc::GSParams& params) {
   }
 
   if (graph_type == rpc::graph::DYNAMIC_PROPERTY) {
-  auto vm_ptr = std::shared_ptr<DynamicFragment::vertex_map_t>(
-      new DynamicFragment::vertex_map_t(comm_spec_));
-  vm_ptr->Init();
-  {
-    typename DynamicFragment::vertex_map_t::partitioner_t partitioner(
-        comm_spec_.fnum());
-    vm_ptr->SetPartitioner(partitioner);
-  }
-  auto fragment =
-      std::static_pointer_cast<DynamicFragment>(wrapper->fragment());
-  fragment->ClearGraph(vm_ptr);
+    auto vm_ptr = std::shared_ptr<DynamicFragment::vertex_map_t>(
+        new DynamicFragment::vertex_map_t(comm_spec_));
+    vm_ptr->Init();
+    {
+      typename DynamicFragment::vertex_map_t::partitioner_t partitioner(
+          comm_spec_.fnum());
+      vm_ptr->SetPartitioner(partitioner);
+    }
+    auto fragment =
+        std::static_pointer_cast<DynamicFragment>(wrapper->fragment());
+    fragment->ClearGraph(vm_ptr);
   } else {
-  auto vm_ptr = std::shared_ptr<grape::DynamicFragmentPoc::vertex_map_t>(
-      new grape::DynamicFragmentPoc::vertex_map_t(comm_spec_));
-  vm_ptr->Init();
-  {
-    typename grape::DynamicFragmentPoc::vertex_map_t::partitioner_t partitioner(comm_spec_.fnum());
-    vm_ptr->SetPartitioner(partitioner);
-  }
-  auto fragment =
-      std::static_pointer_cast<grape::DynamicFragmentPoc>(wrapper->fragment());
-  fragment->ClearGraph(vm_ptr);
+    auto vm_ptr = std::shared_ptr<grape::DynamicFragmentPoc::vertex_map_t>(
+        new grape::DynamicFragmentPoc::vertex_map_t(comm_spec_));
+    vm_ptr->Init();
+    {
+      typename grape::DynamicFragmentPoc::vertex_map_t::partitioner_t
+          partitioner(comm_spec_.fnum());
+      vm_ptr->SetPartitioner(partitioner);
+    }
+    auto fragment = std::static_pointer_cast<grape::DynamicFragmentPoc>(
+        wrapper->fragment());
+    fragment->ClearGraph(vm_ptr);
   }
 #else
   RETURN_GS_ERROR(vineyard::ErrorCode::kUnimplementedMethod,
@@ -1058,7 +1064,8 @@ bl::result<void> GrapeInstance::clearEdges(const rpc::GSParams& params) {
                   object_manager_.GetObject<IFragmentWrapper>(graph_name));
   auto graph_type = wrapper->graph_def().graph_type();
 
-  if (graph_type != rpc::graph::DYNAMIC_PROPERTY && graph_type != rpc::graph::DYNAMIC_PROPERTY_POC) {
+  if (graph_type != rpc::graph::DYNAMIC_PROPERTY &&
+      graph_type != rpc::graph::DYNAMIC_PROPERTY_POC) {
     RETURN_GS_ERROR(
         vineyard::ErrorCode::kInvalidValueError,
         "GraphType must be DYNAMIC_PROPERTY, the origin graph type is: " +

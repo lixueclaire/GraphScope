@@ -25,8 +25,13 @@ class DynamicVertexRange {
  public:
   using vertex_t = Vertex<T>;
   DynamicVertexRange() = default;
-  explicit DynamicVertexRange(const T& begin, const T& end, const T& size, Array<bool>* filter, bool reversed = false)
-      : begin_(begin), end_(end), size_(size), filter_(filter), reversed_(reversed) {}
+  explicit DynamicVertexRange(const T& begin, const T& end, const T& size,
+                              Array<bool>* filter, bool reversed = false)
+      : begin_(begin),
+        end_(end),
+        size_(size),
+        filter_(filter),
+        reversed_(reversed) {}
 
   class iterator {
     using reference_type = Vertex<T>&;
@@ -40,7 +45,8 @@ class DynamicVertexRange {
    public:
     iterator() noexcept : cur_() {}
     explicit iterator(const T& v) noexcept : cur_(v) {}
-    explicit iterator(const T& v, const T& end, Array<bool>* filter, bool reversed = false) noexcept
+    explicit iterator(const T& v, const T& end, Array<bool>* filter,
+                      bool reversed = false) noexcept
         : cur_(v), end_(end), filter_(filter), reversed_(reversed) {}
 
     inline reference_type operator*() noexcept { return cur_; }
@@ -53,7 +59,8 @@ class DynamicVertexRange {
             break;
           }
         } else {
-          if (cur_.GetValue() < end_ && (*filter_)[end_ - cur_.GetValue() - 1]) {
+          if (cur_.GetValue() < end_ &&
+              (*filter_)[end_ - cur_.GetValue() - 1]) {
             break;
           }
         }
@@ -63,7 +70,7 @@ class DynamicVertexRange {
 
     inline iterator operator++(int) noexcept {
       T new_value = cur_.GetValue();
-      while(true) {
+      while (true) {
         ++new_value;
         if (!reversed_) {
           if (new_value < end_ && (*filter_)[new_value]) {
@@ -111,13 +118,15 @@ class DynamicVertexRange {
     }
   };
 
-  inline iterator begin() const { return iterator(begin_, end_, filter_, reversed_); }
-
-  inline iterator end() const { return iterator(end_, end_, filter_, reversed_); }
-
-  VertexRange<T> full_range() const {
-    return VertexRange<T>(begin_, end_);
+  inline iterator begin() const {
+    return iterator(begin_, end_, filter_, reversed_);
   }
+
+  inline iterator end() const {
+    return iterator(end_, end_, filter_, reversed_);
+  }
+
+  VertexRange<T> full_range() const { return VertexRange<T>(begin_, end_); }
 
   size_t size() const { return size_; }
 
@@ -129,7 +138,8 @@ class DynamicVertexRange {
     std::swap(reversed_, rhs.reversed_);
   }
 
-  void SetRange(const T& begin, const T& end, const T& size, Array<bool>* filter, bool reversed = false) {
+  void SetRange(const T& begin, const T& end, const T& size,
+                Array<bool>* filter, bool reversed = false) {
     begin_ = begin;
     end_ = end;
     size_ = size;
@@ -142,8 +152,9 @@ class DynamicVertexRange {
   const T& end_value() const { return end_; }
 
   inline bool Contain(const Vertex<T>& v) const {
-    return begin_ <= v.GetValue() && v.GetValue() < end_
-           && (reversed_ ? (*filter_)[end_ - v.GetValue() - 1] : (*filter_)[v.GetValue()]);
+    return begin_ <= v.GetValue() && v.GetValue() < end_ &&
+           (reversed_ ? (*filter_)[end_ - v.GetValue() - 1]
+                      : (*filter_)[v.GetValue()]);
   }
 
   inline friend InArchive& operator<<(InArchive& in_archive,
@@ -170,11 +181,18 @@ class DynamicDualVertexRange {
  public:
   using vertex_t = Vertex<VID_T>;
   DynamicDualVertexRange() {}
-  explicit DynamicDualVertexRange(const VID_T& head_begin, const VID_T& head_end, const VID_T& tail_begin, const VID_T& tail_end,
-                         Array<bool>* head_filter, Array<bool>* tail_filter)
-      : head_begin_(head_begin), head_end_(head_end), tail_begin_(tail_begin), tail_end_(tail_end), head_filter_(head_filter), tail_filter_(tail_filter) {}
+  explicit DynamicDualVertexRange(
+      const VID_T& head_begin, const VID_T& head_end, const VID_T& tail_begin,
+      const VID_T& tail_end, Array<bool>* head_filter, Array<bool>* tail_filter)
+      : head_begin_(head_begin),
+        head_end_(head_end),
+        tail_begin_(tail_begin),
+        tail_end_(tail_end),
+        head_filter_(head_filter),
+        tail_filter_(tail_filter) {}
 
-  void SetRange(const VID_T& head_begin, const VID_T& head_end, const VID_T& tail_begin, const VID_T& tail_end,
+  void SetRange(const VID_T& head_begin, const VID_T& head_end,
+                const VID_T& tail_begin, const VID_T& tail_end,
                 Array<bool>* head_filter, Array<bool>* tail_filter) {
     head_begin_ = head_begin;
     tail_begin_ = tail_begin;
@@ -205,8 +223,15 @@ class DynamicDualVertexRange {
     const Array<bool>* tail_filter_;
 
    public:
-    explicit iterator(const VID_T& v, const VID_T& x, const VID_T& y, const VID_T& tail_end, const Array<bool>* head_filter, const Array<bool>* tail_filter) noexcept
-        : cur_(v), head_end_(x), tail_begin_(y), tail_end_(tail_end), head_filter_(head_filter), tail_filter_(tail_filter) {}
+    explicit iterator(const VID_T& v, const VID_T& x, const VID_T& y,
+                      const VID_T& tail_end, const Array<bool>* head_filter,
+                      const Array<bool>* tail_filter) noexcept
+        : cur_(v),
+          head_end_(x),
+          tail_begin_(y),
+          tail_end_(tail_end),
+          head_filter_(head_filter),
+          tail_filter_(tail_filter) {}
 
     inline reference_type operator*() noexcept { return cur_; }
 
@@ -221,8 +246,8 @@ class DynamicDualVertexRange {
           if (cur_.GetValue() == head_end_) {
             cur_.SetValue(tail_begin_);
           }
-          if (cur_.GetValue() < tail_end_
-              && (*tail_filter_)[tail_end_ - cur_.GetValue() - 1]) {
+          if (cur_.GetValue() < tail_end_ &&
+              (*tail_filter_)[tail_end_ - cur_.GetValue() - 1]) {
             break;
           }
         }
@@ -232,7 +257,7 @@ class DynamicDualVertexRange {
 
     inline iterator operator++(int) noexcept {
       VID_T new_value = cur_.GetValue();
-      while(true) {
+      while (true) {
         ++new_value;
         if (new_value < head_end_) {
           if ((*head_filter_)[new_value]) {
@@ -242,13 +267,14 @@ class DynamicDualVertexRange {
           if (new_value == head_end_) {
             new_value = tail_begin_;
           }
-          if (new_value < tail_end_
-              && (*tail_filter_)[tail_end_ - new_value - 1]) {
+          if (new_value < tail_end_ &&
+              (*tail_filter_)[tail_end_ - new_value - 1]) {
             break;
           }
         }
       }
-      return iterator(new_value, head_end_, tail_begin_, tail_end_, head_filter_, tail_filter_);
+      return iterator(new_value, head_end_, tail_begin_, tail_end_,
+                      head_filter_, tail_filter_);
     }
 
     inline iterator operator+(size_t offset) const noexcept {
@@ -272,7 +298,8 @@ class DynamicDualVertexRange {
           }
         }
       }
-      return iterator(new_value, head_end_, tail_begin_, tail_end_, head_filter_, tail_filter_);
+      return iterator(new_value, head_end_, tail_begin_, tail_end_,
+                      head_filter_, tail_filter_);
     }
 
     bool operator==(const iterator& rhs) const noexcept {
@@ -288,9 +315,15 @@ class DynamicDualVertexRange {
     }
   };
 
-  inline iterator begin() const { return iterator(head_begin_, head_end_, tail_begin_, tail_end_, head_filter_, tail_filter_); }
+  inline iterator begin() const {
+    return iterator(head_begin_, head_end_, tail_begin_, tail_end_,
+                    head_filter_, tail_filter_);
+  }
 
-  inline iterator end() const { return iterator(tail_end_, head_end_, tail_begin_, tail_end_, head_filter_, tail_filter_); }
+  inline iterator end() const {
+    return iterator(tail_end_, head_end_, tail_begin_, tail_end_, head_filter_,
+                    tail_filter_);
+  }
 
   VertexRange<VID_T> head() const {
     return VertexRange<VID_T>(head_begin_, head_end_);
@@ -300,16 +333,20 @@ class DynamicDualVertexRange {
     return VertexRange<VID_T>(tail_begin_, tail_end_);
   }
 
-  size_t size() const { return (head_end_ - head_begin_) + (tail_end_ - tail_begin_); }
+  size_t size() const {
+    return (head_end_ - head_begin_) + (tail_end_ - tail_begin_);
+  }
 
   inline bool Contain(const Vertex<VID_T>& v) const {
     return ((head_begin_ <= v.GetValue() && v.GetValue() < head_end_) ||
-           (tail_begin_ <= v.GetValue() && v.GetValue() < tail_end_)) &&
-           (v.GetValue() < head_end_ ? (*head_filter_)[v.GetValue()] : (*tail_filter_)[tail_end_ - v.GetValue() - 1]);
+            (tail_begin_ <= v.GetValue() && v.GetValue() < tail_end_)) &&
+           (v.GetValue() < head_end_
+                ? (*head_filter_)[v.GetValue()]
+                : (*tail_filter_)[tail_end_ - v.GetValue() - 1]);
   }
 
-  inline friend InArchive& operator<<(InArchive& in_archive,
-                                      const DynamicDualVertexRange<VID_T>& range) {
+  inline friend InArchive& operator<<(
+      InArchive& in_archive, const DynamicDualVertexRange<VID_T>& range) {
     in_archive << range.head_begin_ << range.head_end_;
     return in_archive;
   }
@@ -327,17 +364,20 @@ class DynamicDualVertexRange {
 };
 
 template <typename VID_T, typename T>
-class VertexArray<DynamicVertexRange<VID_T>, T> : public Array<T, Allocator<T>> {
+class VertexArray<DynamicVertexRange<VID_T>, T>
+    : public Array<T, Allocator<T>> {
   using Base = Array<T, Allocator<T>>;
 
  public:
   VertexArray() : Base(), fake_start_(NULL) {}
   explicit VertexArray(const DynamicVertexRange<VID_T>& range)
-      : Base(range.end_value() - range.begin_value()), range_(range.full_range()) {
+      : Base(range.end_value() - range.begin_value()),
+        range_(range.full_range()) {
     fake_start_ = Base::data() - range_.begin_value();
   }
   VertexArray(const DynamicVertexRange<VID_T>& range, const T& value)
-      : Base(range.end_value() - range.begin_value(), value), range_(range.full_range()) {
+      : Base(range.end_value() - range.begin_value(), value),
+        range_(range.full_range()) {
     fake_start_ = Base::data() - range_.begin_value();
   }
 
