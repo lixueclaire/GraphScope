@@ -22,6 +22,7 @@
 #include "core/fragment/arrow_projected_fragment.h"
 #include "core/fragment/dynamic_fragment.h"
 #include "core/fragment/dynamic_projected_fragment.h"
+#include "core/fragment/dynamic_projected_fragment_poc.h"
 #include "core/object/fragment_wrapper.h"
 #include "core/server/rpc_utils.h"
 #include "core/utils/fragment_traits.h"
@@ -157,6 +158,51 @@ class ProjectSimpleFrame<gs::DynamicProjectedFragment<VDATA_T, EDATA_T>> {
 
     graph_def.set_key(projected_graph_name);
     graph_def.set_graph_type(rpc::graph::DYNAMIC_PROJECTED);
+    gs::rpc::graph::VineyardInfoPb vy_info;
+    if (graph_def.has_extension()) {
+      graph_def.extension().UnpackTo(&vy_info);
+    }
+    vy_info.set_oid_type(PropertyTypeToPb(vineyard::normalize_datatype(
+        vineyard::TypeName<typename projected_fragment_t::oid_t>::Get())));
+    vy_info.set_vid_type(PropertyTypeToPb(vineyard::normalize_datatype(
+        vineyard::TypeName<typename projected_fragment_t::vid_t>::Get())));
+    vy_info.set_vdata_type(PropertyTypeToPb(vineyard::normalize_datatype(
+        vineyard::TypeName<typename projected_fragment_t::vdata_t>::Get())));
+    vy_info.set_edata_type(PropertyTypeToPb(vineyard::normalize_datatype(
+        vineyard::TypeName<typename projected_fragment_t::edata_t>::Get())));
+    graph_def.mutable_extension()->PackFrom(vy_info);
+    auto wrapper = std::make_shared<FragmentWrapper<projected_fragment_t>>(
+        projected_graph_name, graph_def, projected_frag);
+    return std::dynamic_pointer_cast<IFragmentWrapper>(wrapper);
+  }
+};
+
+template <typename VDATA_T, typename EDATA_T>
+class ProjectSimpleFrame<gs::DynamicProjectedFragmentPoc<VDATA_T, EDATA_T>> {
+  using fragment_t = grape::DynamicFragmentPoc;
+  using projected_fragment_t = gs::DynamicProjectedFragmentPoc<VDATA_T, EDATA_T>;
+
+ public:
+  static bl::result<std::shared_ptr<IFragmentWrapper>> Project(
+      std::shared_ptr<IFragmentWrapper>& input_wrapper,
+      const std::string& projected_graph_name, const rpc::GSParams& params) {
+    auto graph_type = input_wrapper->graph_def().graph_type();
+    if (graph_type != rpc::graph::DYNAMIC_PROPERTY_POC) {
+      RETURN_GS_ERROR(vineyard::ErrorCode::kInvalidValueError,
+                      "graph_type should be DYNAMIC_PROPERTY_POC, got " +
+                          rpc::graph::GraphTypePb_Name(graph_type));
+    }
+    BOOST_LEAF_AUTO(v_prop_key, params.Get<std::string>(rpc::V_PROP_KEY));
+    BOOST_LEAF_AUTO(e_prop_key, params.Get<std::string>(rpc::E_PROP_KEY));
+    auto input_frag =
+        std::static_pointer_cast<fragment_t>(input_wrapper->fragment());
+    auto projected_frag =
+        projected_fragment_t::Project(input_frag, v_prop_key, e_prop_key);
+
+    rpc::graph::GraphDefPb graph_def;
+
+    graph_def.set_key(projected_graph_name);
+    graph_def.set_graph_type(rpc::graph::DYNAMIC_PROJECTED_POC);
     gs::rpc::graph::VineyardInfoPb vy_info;
     if (graph_def.has_extension()) {
       graph_def.extension().UnpackTo(&vy_info);

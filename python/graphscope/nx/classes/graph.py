@@ -2141,6 +2141,13 @@ class Graph(_GraphBase):
             graph._graph_type = graph_def_pb2.DYNAMIC_PROJECTED
             graph_def = op.eval(leaf=False)
             graph.schema.from_graph_def(graph_def)
+        elif self.graph_type == graph_def_pb2.DYNAMIC_PROPERTY_POC:
+            op = dag_utils.project_dynamic_property_graph(
+                self, v_prop, e_prop, v_prop_type, e_prop_type
+            )
+            graph._graph_type = graph_def_pb2.DYNAMIC_PROJECTED_POC
+            graph_def = op.eval(leaf=False)
+            graph.schema.from_graph_def(graph_def)
         else:
             op = dag_utils.flatten_arrow_property_graph(
                 self,

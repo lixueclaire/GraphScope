@@ -1198,6 +1198,7 @@ bl::result<void> GrapeInstance::registerGraphType(const rpc::GSParams& params) {
     return object_manager_.PutObject(utils);
   } else if (graph_type == rpc::graph::ARROW_PROJECTED ||
              graph_type == rpc::graph::DYNAMIC_PROJECTED ||
+             graph_type == rpc::graph::DYNAMIC_PROJECTED_POC ||
              graph_type == rpc::graph::ARROW_FLATTENED) {
     auto projector = std::make_shared<Projector>(type_sig, lib_path);
     BOOST_LEAF_CHECK(projector->Init());

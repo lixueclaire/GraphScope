@@ -478,15 +478,19 @@ def project_dynamic_property_graph(graph, v_prop, e_prop, v_prop_type, e_prop_ty
     Returns:
         Operation to project a dynamic property graph. Results in a simple graph.
     """
-    check_argument(graph.graph_type == graph_def_pb2.DYNAMIC_PROPERTY)
+    # check_argument(graph.graph_type == graph_def_pb2.DYNAMIC_PROPERTY)
     config = {
         types_pb2.GRAPH_NAME: utils.s_to_attr(graph.key),
-        types_pb2.GRAPH_TYPE: utils.graph_type_to_attr(graph_def_pb2.DYNAMIC_PROJECTED),
+        # types_pb2.GRAPH_TYPE: utils.graph_type_to_attr(graph_def_pb2.DYNAMIC_PROJECTED),
         types_pb2.V_PROP_KEY: utils.s_to_attr(v_prop),
         types_pb2.E_PROP_KEY: utils.s_to_attr(e_prop),
         types_pb2.V_DATA_TYPE: utils.s_to_attr(utils.data_type_to_cpp(v_prop_type)),
         types_pb2.E_DATA_TYPE: utils.s_to_attr(utils.data_type_to_cpp(e_prop_type)),
     }
+    if graph.graph_type == graph_def_pb2.DYNAMIC_PROPERTY:
+        config[types_pb2.GRAPH_TYPE] = utils.graph_type_to_attr(graph_def_pb2.DYNAMIC_PROJECTED)
+    else:
+        config[types_pb2.GRAPH_TYPE] = utils.graph_type_to_attr(graph_def_pb2.DYNAMIC_PROJECTED_POC)
 
     op = Operation(
         graph.session_id,

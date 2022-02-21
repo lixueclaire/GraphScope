@@ -431,6 +431,23 @@ class DeMutableCSR<
     tail_.template Deserialize<IOADAPTOR_T>(reader);
   }
 
+  void clear_edges() {
+    head_.clear_edges();
+    tail_.clear_edges();
+    return;
+  }
+
+  void copy_from(const DeMutableCSR& source_csr) {
+    min_id_ = source_csr.min_id_;
+    max_id_ = source_csr.max_id_;
+    max_head_id_ = source_csr.max_head_id_;
+    min_tail_id_ = source_csr.min_tail_id_;
+    dedup_ = source_csr.dedup_;
+    enable_tail_ = source_csr.enable_tail_;
+
+    // TODO: copy head_ and tail
+  }
+
  private:
   void add_reversed_edges_dense(const std::vector<edge_t>& edges) {
     vid_t head_num = max_head_id_ - min_id_;

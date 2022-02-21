@@ -31,6 +31,7 @@ enum GraphTypePb {
     PERSISTENT_STORE = 6;
     ARROW_FLATTENED = 7;
     DYNAMIC_PROPERTY_POC = 8;
+    DYNAMIC_PROJECTED_POC = 9;
 }
 
 message MaxGraphInfoPb {

@@ -671,11 +671,28 @@ class DynamicFragmentPoc
     Init(fid_, directed_);
   }
 
-  void ClearEdges() { return; }
+  void ClearEdges() {
+    selfloops_vertices_.clear();
+    selfloops_num_ = 0;
 
-  void CopyFrom(std::shared_ptr<DynamicFragmentPoc> other,
+    if (load_strategy_ == LoadStrategy::kBothOutIn) {
+      ie_.clear_edges();
+    }
+    oe_.clear_edges();
+
+    // clear outer vertices map
+    ovgid_.clear();
+    ovg2i_.clear();
+    ov_alive_.clear();
+    this->ovnum_ = 0;
+    this->alive_ovnum_ = 0;
+  }
+
+  void CopyFrom(std::shared_ptr<DynamicFragmentPoc> source,
                 const std::string& copy_type = "identical") {
-    return;
+    directed_ = source->directed_;
+    load_strategy_ = source->load_strategy_;
+    copyVertices(source);
   }
 
   // generate directed graph from orignal undirected graph.
@@ -786,7 +803,7 @@ class DynamicFragmentPoc
         });
   }
 
- protected:
+ public:
   using base_t::get_ie_begin;
   using base_t::get_ie_end;
   using base_t::get_oe_begin;
@@ -979,6 +996,32 @@ class DynamicFragmentPoc
     }
   }
 
+  void copyVertices(std::shared_ptr<DynamicFragmentPoc>& source) {
+    this->ivnum_ = source->ivnum_;
+    this->ovnum_ = source->ovnum_;
+    this->alive_ivnum_ = source->alive_ivnum_;
+    this->alive_ovnum_ = source->alive_ovnum_;
+    this->fid_ = source->fid_;
+    this->fnum_ = source->fnum_;
+    this->selfloops_num_ = source->selfloops_num_;
+    this->selfloops_vertices_ = source->selfloops_vertices_;
+
+    ovg2i_ = source->ovg2i_;
+    ovgid_.resize(ovnum_);
+    memcpy(&ovgid_[0], &(source->ovgid_[0]), ovnum_ * sizeof(vid_t));
+
+    ivdata_.clear();
+    ivdata_.resize(ivnum_);
+    for (size_t i = 0; i < ivnum_; ++i) {
+      ivdata_[i] = source->ivdata_[i];
+    }
+
+    iv_alive_.resize(ivnum_);
+    ov_alive_.resize(ovnum_);
+    memcpy(&iv_alive_[0], &(source->iv_alive_[0]), ivnum_ * sizeof(bool));
+    memcpy(&ov_alive_[0], &(source->ov_alive_[0]), ovnum_ * sizeof(bool));
+  }
+
   using base_t::ivnum_;
   VID_T ovnum_;
   VID_T alive_ivnum_, alive_ovnum_;
@@ -1001,6 +1044,9 @@ class DynamicFragmentPoc
 
   VID_T selfloops_num_;
   std::set<vid_t> selfloops_vertices_;
+
+  template <typename _VDATA_T, typename _EDATA_T>
+  friend class DynamicProjectedFragmentPoc;
 };
 
 }  // namespace grape

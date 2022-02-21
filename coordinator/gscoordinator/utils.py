@@ -406,6 +406,7 @@ def compile_graph_frame(workspace: str, library_name, attr: dict, engine_config:
     elif graph_type in (
         graph_def_pb2.ARROW_PROJECTED,
         graph_def_pb2.DYNAMIC_PROJECTED,
+        graph_def_pb2.DYNAMIC_PROJECTED_POC,
         graph_def_pb2.ARROW_FLATTENED,
     ):
         cmake_commands += ["-DPROJECT_FRAME=True"]
@@ -835,6 +836,7 @@ def _pre_process_for_project_to_simple_op(  # noqa: C901
     # for nx graph
     if op.attr[types_pb2.GRAPH_TYPE].graph_type in (
         graph_def_pb2.DYNAMIC_PROJECTED,
+        graph_def_pb2.DYNAMIC_PROJECTED_POC,
         graph_def_pb2.ARROW_FLATTENED,
     ):
         return
@@ -1286,6 +1288,10 @@ GRAPH_HEADER_MAP = {
         "gs::DynamicProjectedFragment",
         "core/fragment/dynamic_projected_fragment.h",
     ),
+    graph_def_pb2.DYNAMIC_PROJECTED_POC: (
+        "gs::DynamicProjectedFragmentPoc",
+        "core/fragment/dynamic_projected_fragment_poc.h",
+    ),
     graph_def_pb2.ARROW_PROPERTY: (
         "vineyard::ArrowFragment",
         "vineyard/graph/fragment/arrow_fragment.h",
@@ -1297,6 +1303,10 @@ GRAPH_HEADER_MAP = {
     graph_def_pb2.DYNAMIC_PROPERTY: (
         "gs::DynamicFragment",
         "core/fragment/dynamic_fragment.h",
+    ),
+    graph_def_pb2.DYNAMIC_PROPERTY_POC: (
+        "gs::DynamicFragmentPoc",
+        "core/fragment/dynamic_fragment_poc.h",
     ),
     graph_def_pb2.ARROW_FLATTENED: (
         "gs::ArrowFlattenedFragment",

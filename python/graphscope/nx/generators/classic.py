@@ -204,7 +204,7 @@ def dorogovtsev_goltsev_mendes_graph(n, create_using=None):
 
 
 @nodes_or_number(0)
-def empty_graph(n=0, create_using=None, impl="origin", default=nx.Graph, **kw):
+def empty_graph(n=0, create_using=None, impl="new", default=nx.Graph, **kw):
     """Returns the empty graph with n nodes and zero edges.
 
     Parameters
