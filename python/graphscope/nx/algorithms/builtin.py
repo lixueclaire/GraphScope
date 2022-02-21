@@ -40,6 +40,7 @@ def project_to_simple(func):
             raise InvalidArgumentError("Missing graph_type attribute in graph object.")
         elif graph.graph_type in (
             graph_def_pb2.DYNAMIC_PROPERTY,
+            graph_def_pb2.DYNAMIC_PROPERTY_POC,
             graph_def_pb2.ARROW_PROPERTY,
         ):
             if (

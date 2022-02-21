@@ -41,6 +41,7 @@
 #include "core/fragment/arrow_flattened_fragment.h"
 #include "core/fragment/arrow_projected_fragment.h"
 #include "core/fragment/dynamic_projected_fragment.h"
+#include "core/fragment/dynamic_projected_fragment_poc.h"
 #include "core/utils/transform_utils.h"
 
 #define CONTEXT_TYPE_VERTEX_DATA "vertex_data"

@@ -452,6 +452,10 @@ class Graph(_GraphBase):
             vdata_type = utils.data_type_to_cpp(self._schema.vdata_type)
             edata_type = utils.data_type_to_cpp(self._schema.edata_type)
             s = f"gs::DynamicProjectedFragment<{vdata_type},{edata_type}>"
+        elif self._graph_type == graph_def_pb2.DYNAMIC_PROJECTED_POC:
+            vdata_type = utils.data_type_to_cpp(self._schema.vdata_type)
+            edata_type = utils.data_type_to_cpp(self._schema.edata_type)
+            s = f"gs::DynamicProjectedFragmentPoc<{vdata_type},{edata_type}>"
         elif self._graph_type == graph_def_pb2.ARROW_PROPERTY:
             oid_type = utils.normalize_data_type_str(
                 utils.data_type_to_cpp(self._schema.oid_type)

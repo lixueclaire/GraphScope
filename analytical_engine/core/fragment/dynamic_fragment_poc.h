@@ -711,6 +711,10 @@ class DynamicFragmentPoc
     return;
   }
 
+  inline bool Oid2Gid(const oid_t& oid, vid_t& gid) const {
+    return vm_ptr_->GetGid(oid, gid);
+  }
+
   inline virtual size_t selfloops_num() const {
     return selfloops_vertices_.size();
   }

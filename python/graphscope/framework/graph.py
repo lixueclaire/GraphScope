@@ -799,6 +799,8 @@ class Graph(GraphInterface):
             template = f"ArrowFlattenedFragmen<{oid_type},{vid_type},{vdata_type},{edata_type}>"
         elif self._graph_type == graph_def_pb2.DYNAMIC_PROJECTED:
             template = f"gs::DynamicProjectedFragment<{vdata_type},{edata_type}>"
+        elif self._graph_type == graph_def_pb2.DYNAMIC_PROJECTED_POC:
+            template = f"gs::DynamicProjectedFragmentPoc<{vdata_type},{edata_type}>"
         else:
             raise ValueError(f"Unsupported graph type: {self._graph_type}")
         return template

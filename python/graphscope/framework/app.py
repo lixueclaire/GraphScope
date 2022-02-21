@@ -115,6 +115,8 @@ def not_compatible_for(*graph_types):
                 "arrow_projected": graph.graph_type == graph_def_pb2.ARROW_PROJECTED,
                 "dynamic_projected": graph.graph_type
                 == graph_def_pb2.DYNAMIC_PROJECTED,
+                "dynamic_projected_poc": graph.graph_type
+                == graph_def_pb2.DYNAMIC_PROJECTED_POC,
                 "arrow_flattened": graph.graph_type == graph_def_pb2.ARROW_FLATTENED,
             }
             match = False

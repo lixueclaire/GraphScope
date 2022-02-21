@@ -80,42 +80,41 @@ template <typename VID_T, typename T>
 typename std::enable_if<std::is_integral<T>::value>::type unpack_nbr(
     grape::Nbr<VID_T, T>& nbr, const dynamic::Value& d,
     const char* key) {
-  nbr.set_data(d[key].GetInt64());
+  nbr.data = d[key].GetInt64();
 }
 
 template <typename VID_T, typename T>
 typename std::enable_if<std::is_floating_point<T>::value>::type unpack_nbr(
     grape::Nbr<VID_T, T>& nbr, const dynamic::Value& d,
     const char* key) {
-  nbr.set_data(d[key].GetDouble());
+  nbr.data = d[key].GetDouble();
 }
 
 template <typename VID_T, typename T>
 typename std::enable_if<std::is_same<std::string, T>::value>::type unpack_nbr(
     grape::Nbr<VID_T, T>& nbr, const dynamic::Value& d,
     const char* key) {
-  nbr.set_data(d[key].GetString());
+  nbr.data = d[key].GetString();
 }
 
 template <typename VID_T, typename T>
 typename std::enable_if<std::is_same<bool, T>::value>::type unpack_nbr(
     grape::Nbr<VID_T, T>& nbr, const dynamic::Value& d,
     const char* key) {
-  nbr.set_data(d[key].GetBool());
+  nbr.data = d[key].GetBool();
 }
 
 template <typename VID_T, typename T>
 typename std::enable_if<std::is_same<grape::EmptyType, T>::value>::type
 unpack_nbr(grape::Nbr<VID_T, T>& nbr, const dynamic::Value& d,
            const std::string& key) {
-  nbr.set_data(grape::EmptyType());
+  return;
 }
 
 #define SET_PROJECTED_POC_NBR                                      \
   void set_nbr() {                                             \
-    const auto& data = current_->data();                        \
-    unpack_nbr<VID_T, EDATA_T>(internal_nbr, data, prop_key_); \
-    internal_nbr.set_neighbor(current_->neighbor);            \
+    unpack_nbr<VID_T, EDATA_T>(internal_nbr, current_->data, prop_key_); \
+    internal_nbr.neighbor = current_->neighbor;            \
   }
 
 /**
@@ -614,6 +613,10 @@ class DynamicProjectedFragmentPoc {
 
   inline const std::vector<vertex_t>& MirrorVertices(fid_t fid) const {
     return fragment_->MirrorVertices(fid);
+  }
+
+  inline bool Oid2Gid(const oid_t& oid, vid_t& gid) const {
+    return fragment_->Oid2Gid(oid, gid);
   }
 
   inline bool HasNode(const oid_t& node) const {

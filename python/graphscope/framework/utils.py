@@ -325,6 +325,8 @@ def graph_type_to_cpp_class(graph_type):
         return "gs::DynamicFragment"
     if graph_type == graph_def_pb2.DYNAMIC_PROJECTED:
         return "gs::DynamicProjectedFragment"
+    if graph_type == graph_def_pb2.DYNAMIC_PROJECTED_POC:
+        return "gs::DynamicProjectedFragmentPoc"
     if graph_type == graph_def_pb2.ARROW_PROPERTY:
         return "vineyard::ArrowFragment"
     if graph_type == graph_def_pb2.ARROW_PROJECTED:
