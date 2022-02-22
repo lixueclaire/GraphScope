@@ -332,8 +332,10 @@ class Graph(_GraphBase):
         self._remove_node_cache = []
         self._remove_edge_cache = []
 
+        self._impl_new = False
         if impl == "new":
             self._graph_type = graph_def_pb2.DYNAMIC_PROPERTY_POC
+            self._impl_new = True
         create_empty_in_engine = attr.pop(
             "create_empty_in_engine", True
         )  # a hidden parameter

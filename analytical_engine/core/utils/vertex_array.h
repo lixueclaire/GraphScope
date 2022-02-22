@@ -52,7 +52,7 @@ class DynamicVertexRange {
     inline reference_type operator*() noexcept { return cur_; }
 
     inline iterator& operator++() noexcept {
-      while (true) {
+      while (true && cur_.GetValue() < end_) {
         ++cur_;
         if (!reversed_) {
           if (cur_.GetValue() < end_ && (*filter_)[cur_.GetValue()]) {
@@ -70,7 +70,7 @@ class DynamicVertexRange {
 
     inline iterator operator++(int) noexcept {
       T new_value = cur_.GetValue();
-      while (true) {
+      while (true && new_value < end_) {
         ++new_value;
         if (!reversed_) {
           if (new_value < end_ && (*filter_)[new_value]) {
@@ -119,7 +119,13 @@ class DynamicVertexRange {
   };
 
   inline iterator begin() const {
-    return iterator(begin_, end_, filter_, reversed_);
+    T real_begin = begin_;
+    if (!reversed_) {
+      while (real_begin < end_ && !(*filter_)[real_begin]) { ++real_begin; }
+    } else {
+      while (real_begin < end_ && !(*filter_)[end_ - real_begin - 1]) { ++real_begin; }
+    }
+    return iterator(real_begin, end_, filter_, reversed_);
   }
 
   inline iterator end() const {
@@ -236,7 +242,7 @@ class DynamicDualVertexRange {
     inline reference_type operator*() noexcept { return cur_; }
 
     inline iterator& operator++() noexcept {
-      while (true) {
+      while (true && cur_.GetValue() < tail_end_) {
         ++cur_;
         if (cur_.GetValue() < head_end_) {
           if ((*head_filter_)[cur_.GetValue()]) {
@@ -257,7 +263,7 @@ class DynamicDualVertexRange {
 
     inline iterator operator++(int) noexcept {
       VID_T new_value = cur_.GetValue();
-      while (true) {
+      while (true && new_value < tail_end_) {
         ++new_value;
         if (new_value < head_end_) {
           if ((*head_filter_)[new_value]) {
@@ -316,7 +322,13 @@ class DynamicDualVertexRange {
   };
 
   inline iterator begin() const {
-    return iterator(head_begin_, head_end_, tail_begin_, tail_end_,
+    VID_T real_begin = head_begin_;
+    while (real_begin < head_end_ && !(*head_filter_)[real_begin]) { ++real_begin; }
+    if (real_begin == head_end_) {
+      real_begin = tail_begin_;
+      while (real_begin < tail_end_ && !(*tail_filter_)[tail_end_ - real_begin - 1]) { ++real_begin; }
+    }
+    return iterator(real_begin, head_end_, tail_begin_, tail_end_,
                     head_filter_, tail_filter_);
   }
 

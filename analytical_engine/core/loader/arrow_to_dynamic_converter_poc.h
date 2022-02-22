@@ -98,8 +98,11 @@ class ArrowToDynamicConverterPoc {
   bl::result<std::shared_ptr<dst_fragment_t>> Convert(
       const std::shared_ptr<src_fragment_t>& arrow_frag) {
     auto arrow_vm = arrow_frag->GetVertexMap();
+    LOG(INFO) << "convert vertex map";
     BOOST_LEAF_AUTO(dynamic_vm, convertVertexMap(arrow_frag));
+    LOG(INFO) << "convert fragment";
     BOOST_LEAF_AUTO(dynamic_frag, convertFragment(arrow_frag, dynamic_vm));
+    LOG(INFO) << "convert done";
     return dynamic_frag;
   }
 

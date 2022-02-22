@@ -342,10 +342,6 @@ class DynamicFragmentPoc
         initOuterVerticesOfFragment();
       }
     }
-    LOG(INFO) << "ivnum=" << this->ivnum_ << " ovnum=" << this->ovnum_;
-    for (int i = 0; i < iv_alive_.size(); ++i) {
-      LOG(INFO) << i << " alive: " << iv_alive_[i];
-    }
     ivdata_.resize(this->ivnum_);
     ovdata_.resize(this->ovnum_);
     iv_alive_.resize(this->ivnum_, true);

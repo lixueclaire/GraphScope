@@ -216,7 +216,7 @@ def dynamic_to_arrow(graph):
 
     Returns: An op of transform dynamic graph to arrow graph with necessary configurations.
     """
-    check_argument(graph.graph_type == graph_def_pb2.DYNAMIC_PROPERTY)
+    check_argument(graph.graph_type == graph_def_pb2.DYNAMIC_PROPERTY or graph.graph_type == graph_def_pb2.DYNAMIC_PROPERTY_POC)
     oid_type = None
     for node in graph:
         if oid_type is None:
@@ -236,7 +236,7 @@ def dynamic_to_arrow(graph):
     vid_type = utils.data_type_to_cpp(graph_def_pb2.ULONG)
     config = {
         types_pb2.GRAPH_NAME: utils.s_to_attr(graph.key),
-        types_pb2.GRAPH_TYPE: utils.graph_type_to_attr(graph_def_pb2.ARROW_PROPERTY),
+        types_pb2.GRAPH_TYPE: utils.graph_type_to_attr(graph.graph_type),
         types_pb2.DST_GRAPH_TYPE: utils.graph_type_to_attr(
             graph_def_pb2.ARROW_PROPERTY
         ),
@@ -266,9 +266,9 @@ def arrow_to_dynamic(graph):
     config = {
         types_pb2.GRAPH_NAME: utils.s_to_attr(graph.key),
         types_pb2.GRAPH_TYPE: utils.graph_type_to_attr(graph_def_pb2.ARROW_PROPERTY),
-        types_pb2.DST_GRAPH_TYPE: utils.graph_type_to_attr(
-            graph_def_pb2.DYNAMIC_PROPERTY
-        ),
+        # types_pb2.DST_GRAPH_TYPE: utils.graph_type_to_attr(
+        #     graph_def_pb2.DYNAMIC_PROPERTY
+        # ),
         types_pb2.OID_TYPE: utils.s_to_attr(
             utils.data_type_to_cpp(graph.schema.oid_type)
         ),
@@ -277,6 +277,10 @@ def arrow_to_dynamic(graph):
         ),
         types_pb2.DEFAULT_LABEL_ID: utils.i_to_attr(graph._default_label_id),
     }
+    if graph._impl_new == True:
+        config[types_pb2.DST_GRAPH_TYPE] = utils.graph_type_to_attr(graph_def_pb2.DYNAMIC_PROPERTY_POC)
+    else:
+        config[types_pb2.DST_GRAPH_TYPE] = utils.graph_type_to_attr(graph_def_pb2.DYNAMIC_PROPERTY)
     op = Operation(
         graph.session_id,
         types_pb2.TRANSFORM_GRAPH,

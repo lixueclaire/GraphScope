@@ -81,7 +81,9 @@ class PropertyGraphUtils : public GSObject {
         load_graph_(nullptr),
         add_labels_to_graph_(nullptr),
         to_arrow_fragment_(nullptr),
-        to_dynamic_fragment_(nullptr) {}
+        to_dynamic_fragment_(nullptr),
+        to_arrow_fragment_poc_(nullptr),
+        to_dynamic_fragment_poc_(nullptr) {}
 
   bl::result<void> Init() {
     { BOOST_LEAF_ASSIGN(dl_handle_, open_lib(lib_path_.c_str())); }
@@ -107,12 +109,12 @@ class PropertyGraphUtils : public GSObject {
     {
       BOOST_LEAF_AUTO(p_fun,
                       get_func_ptr(lib_path_, dl_handle_, "ToArrowFragmentPoc"));
-      to_arrow_fragment_ = reinterpret_cast<ToArrowFragmentPocT*>(p_fun);
+      to_arrow_fragment_poc_ = reinterpret_cast<ToArrowFragmentPocT*>(p_fun);
     }
     {
       BOOST_LEAF_AUTO(p_fun,
                       get_func_ptr(lib_path_, dl_handle_, "ToDynamicFragmentPoc"));
-      to_dynamic_fragment_ = reinterpret_cast<ToDynamicFragmentPocT*>(p_fun);
+      to_dynamic_fragment_poc_ = reinterpret_cast<ToDynamicFragmentPocT*>(p_fun);
     }
     return {};
   }
