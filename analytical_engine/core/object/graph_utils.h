@@ -55,6 +55,18 @@ typedef void ToDynamicFragmentT(
     const std::string& dst_graph_name, int default_label_id,
     bl::result<std::shared_ptr<IFragmentWrapper>>& wrapper_out);
 
+typedef void ToArrowFragmentPocT(
+    vineyard::Client& client, const grape::CommSpec& comm_spec,
+    std::shared_ptr<IFragmentWrapper>& wrapper_in,
+    const std::string& dst_graph_name,
+    bl::result<std::shared_ptr<IFragmentWrapper>>& wrapper_out);
+
+typedef void ToDynamicFragmentPocT(
+    const grape::CommSpec& comm_spec,
+    std::shared_ptr<IFragmentWrapper>& wrapper_in,
+    const std::string& dst_graph_name, int default_label_id,
+    bl::result<std::shared_ptr<IFragmentWrapper>>& wrapper_out);
+
 /**
  * @brief PropertyGraphUtils is a invoker of property_graph_frame library. This
  * utility provides these methods to manipulate ArrowFragment: LoadGraph,
@@ -91,6 +103,16 @@ class PropertyGraphUtils : public GSObject {
       BOOST_LEAF_AUTO(p_fun,
                       get_func_ptr(lib_path_, dl_handle_, "ToDynamicFragment"));
       to_dynamic_fragment_ = reinterpret_cast<ToDynamicFragmentT*>(p_fun);
+    }
+    {
+      BOOST_LEAF_AUTO(p_fun,
+                      get_func_ptr(lib_path_, dl_handle_, "ToArrowFragmentPoc"));
+      to_arrow_fragment_ = reinterpret_cast<ToArrowFragmentPocT*>(p_fun);
+    }
+    {
+      BOOST_LEAF_AUTO(p_fun,
+                      get_func_ptr(lib_path_, dl_handle_, "ToDynamicFragmentPoc"));
+      to_dynamic_fragment_ = reinterpret_cast<ToDynamicFragmentPocT*>(p_fun);
     }
     return {};
   }
@@ -148,6 +170,39 @@ class PropertyGraphUtils : public GSObject {
 #endif
   }
 
+  bl::result<std::shared_ptr<IFragmentWrapper>> ToArrowFragmentPoc(
+      vineyard::Client& client, const grape::CommSpec& comm_spec,
+      std::shared_ptr<IFragmentWrapper>& wrapper_in,
+      const std::string& dst_graph_name) {
+#ifdef NETWORKX
+    bl::result<std::shared_ptr<IFragmentWrapper>> wrapper;
+
+    to_arrow_fragment_poc_(client, comm_spec, wrapper_in, dst_graph_name, wrapper);
+    return wrapper;
+#else
+    RETURN_GS_ERROR(vineyard::ErrorCode::kUnsupportedOperationError,
+                    "GraphScope is compiled with NETWORKX=OFF, please "
+                    "recompile with NETWORKX=ON");
+#endif
+  }
+
+  bl::result<std::shared_ptr<IFragmentWrapper>> ToDynamicFragmentPoc(
+      const grape::CommSpec& comm_spec,
+      std::shared_ptr<IFragmentWrapper>& wrapper_in,
+      const std::string& dst_graph_name, int default_label_id) {
+#ifdef NETWORKX
+    bl::result<std::shared_ptr<IFragmentWrapper>> wrapper;
+
+    to_dynamic_fragment_poc_(comm_spec, wrapper_in, dst_graph_name,
+                         default_label_id, wrapper);
+    return wrapper;
+#else
+    RETURN_GS_ERROR(vineyard::ErrorCode::kUnsupportedOperationError,
+                    "GraphScope is compiled with NETWORKX=OFF, please "
+                    "recompile with NETWORKX=ON");
+#endif
+  }
+
  private:
   std::string lib_path_;
   void* dl_handle_;
@@ -155,6 +210,8 @@ class PropertyGraphUtils : public GSObject {
   AddLabelsToGraphT* add_labels_to_graph_;
   ToArrowFragmentT* to_arrow_fragment_;
   ToDynamicFragmentT* to_dynamic_fragment_;
+  ToArrowFragmentPocT* to_arrow_fragment_poc_;
+  ToDynamicFragmentPocT* to_dynamic_fragment_poc_;
 };
 
 }  // namespace gs

@@ -3,6 +3,7 @@
 
 #include <memory>
 
+#include "grape/communication/communicator.h"
 #include "grape/fragment/basic_fragment_mutator.h"
 #include "grape/fragment/csr_edgecut_fragment_base.h"
 
@@ -769,6 +770,117 @@ class DynamicFragmentPoc
 
   inline virtual bool IsAliveInnerVertex(const vertex_t& v) const {
     return iv_alive_[v.GetValue()];
+  }
+
+  auto CollectPropertyKeysOnVertices()
+      -> gs::bl::result<std::map<std::string, gs::dynamic::Type>> {
+    std::map<std::string, gs::dynamic::Type> prop_keys;
+
+    for (const auto& v : InnerVertices()) {
+      auto& data = ivdata_[v.GetValue()];
+
+      for (auto member = data.MemberBegin(); member != data.MemberEnd();
+           ++member) {
+        std::string s_k = member->name.GetString();
+
+        if (prop_keys.find(s_k) == prop_keys.end()) {
+          prop_keys[s_k] = gs::dynamic::GetType(member->value);
+        } else {
+          auto seen_type = prop_keys[s_k];
+          auto curr_type = gs::dynamic::GetType(member->value);
+
+          if (seen_type != curr_type) {
+            std::stringstream ss;
+            ss << "OID: " << GetId(v) << " has key " << s_k << " with type "
+               << curr_type << " but previous type is: " << seen_type;
+            RETURN_GS_ERROR(vineyard::ErrorCode::kDataTypeError, ss.str());
+          }
+        }
+      }
+    }
+
+    return prop_keys;
+  }
+
+  auto CollectPropertyKeysOnEdges()
+      -> gs::bl::result<std::map<std::string, gs::dynamic::Type>> {
+    std::map<std::string, gs::dynamic::Type> prop_keys;
+
+    auto extract_keys = [this, &prop_keys](
+                            const vertex_t& u,
+                            const adj_list_t& es) -> gs::bl::result<void> {
+      for (auto& e : es) {
+        auto& data = e.data;
+
+        for (auto member = data.MemberBegin(); member != data.MemberEnd();
+             ++member) {
+          std::string s_k = member->name.GetString();
+
+          if (prop_keys.find(s_k) == prop_keys.end()) {
+            prop_keys[s_k] = gs::dynamic::GetType(member->value);
+          } else {
+            auto seen_type = prop_keys[s_k];
+            auto curr_type = gs::dynamic::GetType(member->value);
+
+            if (seen_type != curr_type) {
+              std::stringstream ss;
+              ss << "Edge (OID): " << GetId(u) << " " << GetId(e.neighbor)
+                 << " has key " << s_k << " with type " << curr_type
+                 << " but previous type is: " << seen_type;
+              RETURN_GS_ERROR(vineyard::ErrorCode::kDataTypeError, ss.str());
+            }
+          }
+        }
+      }
+      return {};
+    };
+
+    for (const auto& v : InnerVertices()) {
+      if (load_strategy_ == grape::LoadStrategy::kOnlyIn ||
+          load_strategy_ == grape::LoadStrategy::kBothOutIn) {
+        auto es = this->GetIncomingAdjList(v);
+        if (es.NotEmpty()) {
+          BOOST_LEAF_CHECK(extract_keys(v, es));
+        }
+      }
+
+      if (load_strategy_ == grape::LoadStrategy::kOnlyOut ||
+          load_strategy_ == grape::LoadStrategy::kBothOutIn) {
+        auto es = this->GetOutgoingAdjList(v);
+        if (es.NotEmpty()) {
+          BOOST_LEAF_CHECK(extract_keys(v, es));
+        }
+      }
+    }
+
+    return prop_keys;
+  }
+
+  virtual gs::bl::result<gs::dynamic::Type> GetOidType(
+      const grape::CommSpec& comm_spec) const {
+    auto oid_type = gs::dynamic::Type::kNullType;
+    if (this->alive_ivnum_ > 0) {
+      // Get first alive vertex oid type.
+      for (vid_t lid = 0; lid < ivnum_; ++lid) {
+        if (iv_alive_[lid]) {
+          oid_t oid;
+          vm_ptr_->GetOid(fid_, lid, oid);
+          oid_type = gs::dynamic::GetType(oid);
+        }
+      }
+    }
+    grape::Communicator comm;
+    gs::dynamic::Type max_type;
+    comm.InitCommunicator(comm_spec.comm());
+    comm.Max(oid_type, max_type);
+
+    if (max_type != gs::dynamic::Type::kInt64Type &&
+        max_type != gs::dynamic::Type::kDoubleType &&
+        max_type != gs::dynamic::Type::kStringType &&
+        max_type != gs::dynamic::Type::kNullType) {
+      LOG(FATAL) << "Unsupported oid type.";
+    }
+    return max_type;
   }
 
  public:

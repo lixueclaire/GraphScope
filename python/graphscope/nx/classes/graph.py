@@ -271,7 +271,7 @@ class Graph(_GraphBase):
     def to_undirected_class(self):
         return Graph
 
-    def __init__(self, incoming_graph_data=None, default_label=None, impl="origin", **attr):
+    def __init__(self, incoming_graph_data=None, default_label=None, impl="new", **attr):
         """Initialize a graph with graph, edges, name, or graph attributes
 
         Parameters

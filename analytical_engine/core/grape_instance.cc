@@ -840,10 +840,26 @@ bl::result<rpc::graph::GraphDefPb> GrapeInstance::convertGraph(
                                            dst_graph_name, default_label_id));
     BOOST_LEAF_CHECK(object_manager_.PutObject(dst_graph_wrapper));
     return dst_graph_wrapper->graph_def();
+  } else if (src_graph_type == rpc::graph::ARROW_PROPERTY &&
+      dst_graph_type == rpc::graph::DYNAMIC_PROPERTY_POC) {
+    BOOST_LEAF_AUTO(default_label_id,
+                    params.Get<int64_t>(rpc::DEFAULT_LABEL_ID));
+    BOOST_LEAF_AUTO(dst_graph_wrapper, g_utils->ToDynamicFragmentPoc(
+                                           comm_spec_, src_frag_wrapper,
+                                           dst_graph_name, default_label_id));
+    BOOST_LEAF_CHECK(object_manager_.PutObject(dst_graph_wrapper));
+    return dst_graph_wrapper->graph_def();
   } else if (src_graph_type == rpc::graph::DYNAMIC_PROPERTY &&
              dst_graph_type == rpc::graph::ARROW_PROPERTY) {
     BOOST_LEAF_AUTO(dst_graph_wrapper,
                     g_utils->ToArrowFragment(*client_, comm_spec_,
+                                             src_frag_wrapper, dst_graph_name));
+    BOOST_LEAF_CHECK(object_manager_.PutObject(dst_graph_wrapper));
+    return dst_graph_wrapper->graph_def();
+  } else if (src_graph_type == rpc::graph::DYNAMIC_PROPERTY_POC &&
+             dst_graph_type == rpc::graph::ARROW_PROPERTY) {
+    BOOST_LEAF_AUTO(dst_graph_wrapper,
+                    g_utils->ToArrowFragmentPoc(*client_, comm_spec_,
                                              src_frag_wrapper, dst_graph_name));
     BOOST_LEAF_CHECK(object_manager_.PutObject(dst_graph_wrapper));
     return dst_graph_wrapper->graph_def();
