@@ -195,7 +195,6 @@ class DynamicFragmentPoc
     if (static_cast<double>(mutation.vertices_to_remove.size()) /
             static_cast<double>(this->GetVerticesNum()) <
         0.1) {
-      LOG(INFO) << "removing vertices sparse.";
       std::set<vertex_t> sparse_set;
       for (auto gid : mutation.vertices_to_remove) {
         if (Gid2Vertex(gid, v)) {
@@ -217,9 +216,7 @@ class DynamicFragmentPoc
         ie_.remove_if(func);
       }
       oe_.remove_if(func);
-
     } else if (!mutation.vertices_to_remove.empty()) {
-      LOG(INFO) << "removing vertices dense.";
       vertex_array_t<bool> dense_bitset;
       dense_bitset.Init(Vertices(), false);
       for (auto gid : mutation.vertices_to_remove) {
@@ -482,6 +479,14 @@ class DynamicFragmentPoc
     }
   }
 
+  inline void UpdateData(const vertex_t& v, VDATA_T&& val) {
+    if (IsInnerVertex(v)) {
+      ivdata_[v.GetValue()].Update(val);
+    } else {
+      ovdata_[outerVertexLidToIndex(v.GetValue())].Update(val);
+    }
+  }
+
   bool OuterVertexGid2Lid(VID_T gid, VID_T& lid) const override {
     auto iter = ovg2i_.find(gid);
     if (iter != ovg2i_.end()) {
@@ -524,7 +529,8 @@ class DynamicFragmentPoc
                       const gs::dynamic::Value& common_attrs,
                       const gs::rpc::ModifyType& modify_type) {
     {
-      LOG(INFO) << "begin adding nodes.";
+      LOG(INFO) << "begin modify nodes.";
+      double start = GetCurrentTime();
       mutation_t mutation;
       auto& partitioner = vm_ptr_->GetPartitioner();
       oid_t oid;
@@ -540,18 +546,14 @@ class DynamicFragmentPoc
         } else {
           oid = std::move(v);
         }
-        LOG(INFO) << "adding vertex: " << oid;
         v_fid = partitioner.GetPartitionId(oid);
         if (modify_type == gs::rpc::NX_ADD_NODES) {
-          LOG(INFO) << "put vertex to _vertex map: " << oid;
           bool added = vm_ptr_->AddVertex(oid, gid);
-          LOG(INFO) << "existed vertex : " << added;
           if (v_fid == fid()) {
             if (!added) {
               vertex_t vertex;
               Gid2Vertex(gid, vertex);
-              auto& v_data = GetRefData(vertex);
-              v_data.Update(v_data);
+              UpdateData(vertex, std::move(v_data));
             } else {
               mutation.vertices_to_add.emplace_back(gid, std::move(v_data));
             }
@@ -569,11 +571,12 @@ class DynamicFragmentPoc
           mutation.vertices_to_remove.emplace_back(gid);
         }
       }
-      LOG(INFO) << "Mutate vertices.";
+      LOG(INFO) << "Poc processing vertices time: " << GetCurrentTime() - start;
       Mutate(mutation);
-      LOG(INFO) << "Mutate vertices done.";
+      LOG(INFO) << "Poc modify vertices time: " << GetCurrentTime() - start;
     }
   }
+
 
   void ModifyEdges(gs::dynamic::Value& edges_to_modify,
                    const gs::dynamic::Value& common_attrs,

@@ -1575,12 +1575,10 @@ class DynamicFragment {
     LOG(INFO) << "Origin processing edges time: "
               << grape::GetCurrentTime() - start;
 
+    start = grape::GetCurrentTime();
     switch (modify_type) {
     case rpc::NX_ADD_EDGES:
-      start = grape::GetCurrentTime();
       Insert(vertices, edges);
-      LOG(INFO) << "Origin insert edges time: "
-                << grape::GetCurrentTime() - start;
       break;
     case rpc::NX_UPDATE_EDGES:
       Update(vertices, edges);
@@ -1591,11 +1589,14 @@ class DynamicFragment {
     default:
       CHECK(false);
     }
+    LOG(INFO) << "Origin modify edges time: "
+              << grape::GetCurrentTime() - start;
   }
 
   void ModifyVertices(dynamic::Value& vertices_to_modify,
                       const dynamic::Value& common_attrs,
                       const rpc::ModifyType& modify_type) {
+    double start = grape::GetCurrentTime();
     std::vector<internal_vertex_t> vertices;
     std::vector<edge_t> empty_edges;
 
@@ -1632,9 +1633,12 @@ class DynamicFragment {
         }
       }
     }
+    LOG(INFO) << "Origin processing vertices time: "
+              << grape::GetCurrentTime() - start;
     if (vertices.empty())
       return;
 
+    start = grape::GetCurrentTime();
     switch (modify_type) {
     case rpc::NX_ADD_NODES:
       Insert(vertices, empty_edges);
@@ -1648,6 +1652,8 @@ class DynamicFragment {
     default:
       CHECK(false);
     }
+    LOG(INFO) << "Origin modify vertices time: "
+              << grape::GetCurrentTime() - start;
   }
 
   /**
