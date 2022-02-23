@@ -36,6 +36,7 @@
 #include "core/fragment/arrow_flattened_fragment.h"
 #include "core/fragment/arrow_projected_fragment.h"
 #include "core/fragment/dynamic_projected_fragment.h"
+#include "core/fragment/dynamic_projected_fragment_poc.h"
 #include "core/object/i_fragment_wrapper.h"
 #include "core/utils/transform_utils.h"
 #include "core/utils/trivial_tensor.h"

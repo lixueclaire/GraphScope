@@ -398,6 +398,8 @@ class DynamicProjectedFragmentPoc {
   template <typename DATA_T>
   using outer_vertex_array_t = typename fragment_t::vertex_array_t<DATA_T>;
 
+  using vertex_range_t = inner_vertices_t;
+
   // This member is used by grape::check_load_strategy_compatible()
   static constexpr grape::LoadStrategy load_strategy =
       grape::LoadStrategy::kBothOutIn;
@@ -607,6 +609,10 @@ class DynamicProjectedFragmentPoc {
 
   inline bool HasNode(const oid_t& node) const {
     return fragment_->HasNode(node);
+  }
+
+  bl::result<dynamic::Type> GetOidType(const grape::CommSpec& comm_spec) const {
+    return fragment_->GetOidType(comm_spec);
   }
 
  private:

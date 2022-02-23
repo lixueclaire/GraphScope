@@ -211,52 +211,42 @@ class SparseVertexArray : public grape::Array<T, grape::Allocator<T>> {
  * @tparam EDATA_T
  */
 template <typename EDATA_T>
-class Nbr {
+struct Nbr {
   using VID_T = vineyard::property_graph_types::VID_TYPE;
 
- public:
-  Nbr() : neighbor_(), data_() {}
-  explicit Nbr(const VID_T& nbr) : neighbor_(nbr), data_() {}
-  explicit Nbr(const grape::Vertex<VID_T>& nbr) : neighbor_(nbr), data_() {}
+  Nbr() : neighbor(), data() {}
+  explicit Nbr(const VID_T& nbr) : neighbor(nbr), data() {}
+  explicit Nbr(const grape::Vertex<VID_T>& nbr) : neighbor(nbr), data() {}
   Nbr(const Nbr& rhs) = default;
-  Nbr(const VID_T& nbr, const EDATA_T& data) : neighbor_(nbr), data_(data) {}
-  Nbr(const grape::Vertex<VID_T>& nbr, const EDATA_T& data)
-      : neighbor_(nbr), data_(data) {}
+  Nbr(const VID_T& nbr, const EDATA_T& rdata) : neighbor(nbr), data(rdata) {}
+  Nbr(const grape::Vertex<VID_T>& nbr, const EDATA_T& rdata)
+      : neighbor(nbr), data(rdata) {}
   ~Nbr() = default;
 
   Nbr& operator=(const Nbr& rhs) {
-    neighbor_ = rhs.neighbor_;
-    data_ = rhs.data_;
+    neighbor = rhs.neighbor;
+    data = rhs.data;
     return *this;
   }
 
-  const grape::Vertex<VID_T>& neighbor() const { return neighbor_; }
+  const grape::Vertex<VID_T>& get_neighbor() const { return neighbor; }
 
-  grape::Vertex<VID_T>& neighbor() { return neighbor_; }
-
-  const grape::Vertex<VID_T>& get_neighbor() const { return neighbor_; }
-
-  grape::Vertex<VID_T>& get_neighbor() { return neighbor_; }
+  grape::Vertex<VID_T>& get_neighbor() { return neighbor; }
 
   void set_neighbor(const grape::Vertex<VID_T>& neighbor) {
-    this->neighbor_ = neighbor;
+    this->neighbor = neighbor;
   }
 
-  const EDATA_T& data() const { return data_; }
+  const EDATA_T& get_data() const { return data; }
 
-  EDATA_T& data() { return data_; }
+  EDATA_T& get_data() { return data; }
 
-  const EDATA_T& get_data() const { return data_; }
+  void set_data(const EDATA_T& rdata) { this->data = rdata; }
 
-  EDATA_T& get_data() { return data_; }
+  void update_data(const EDATA_T& rdata) { data.Update(rdata); }
 
-  void set_data(const EDATA_T& data) { this->data_ = data; }
-
-  void update_data(const EDATA_T& data) { data_.Update(data); }
-
- private:
-  grape::Vertex<VID_T> neighbor_;
-  EDATA_T data_;
+  grape::Vertex<VID_T> neighbor;
+  EDATA_T data;
 };
 
 /**
@@ -344,7 +334,7 @@ class AdjList {
    private:
     void set_nbr() {
       internal_nbr = map_current_->second;
-      auto v = internal_nbr.neighbor();
+      auto v = internal_nbr.neighbor;
       // convert internal lid to external lid
       if (v.GetValue() >= ivnum_) {
         v.SetValue(ivnum_ + id_mask_ - v.GetValue());
@@ -525,7 +515,7 @@ class ConstAdjList {
    private:
     void set_nbr() {
       internal_nbr = map_current_->second;
-      auto v = internal_nbr.neighbor();
+      auto v = internal_nbr.neighbor;
       // convert internal lid to external lid
       if (v.GetValue() >= ivnum_) {
         v.SetValue(ivnum_ + id_mask_ - v.GetValue());
@@ -1497,7 +1487,7 @@ class DynamicFragment {
         if (pos != -1) {
           auto& oe = edge_space_[pos];
           if (oe.find(vlid) != oe.end()) {
-            data = oe[vlid].data();
+            data = oe[vlid].get_data();
             return true;
           }
         }
@@ -1508,7 +1498,7 @@ class DynamicFragment {
         if (pos != -1) {
           auto& es = edge_space_[pos];
           if (es.find(ulid) != es.end()) {
-            data = es[ulid].data();
+            data = es[ulid].get_data();
             return true;
           }
         }
@@ -1709,7 +1699,7 @@ class DynamicFragment {
 
       for (auto& e : adj_list) {
         auto& nbr = e.second;
-        auto& data = nbr.data();
+        auto& data = nbr.get_data();
 
         CHECK(data.IsObject());
         for (auto member = data.MemberBegin(); member != data.MemberEnd();
@@ -1724,7 +1714,7 @@ class DynamicFragment {
 
             if (seen_type != curr_type) {
               std::stringstream ss;
-              ss << "Edge (OID): " << GetId(u) << " " << GetId(nbr.neighbor())
+              ss << "Edge (OID): " << GetId(u) << " " << GetId(nbr.neighbor)
                  << " has key " << s_k << " with type "
                  << getTypeName(curr_type)
                  << " but previous type is: " << getTypeName(seen_type);
@@ -2849,7 +2839,7 @@ class DynamicFragment {
         continue;
       }
       for (auto& e : origin->edge_space_[ie_pos]) {
-        if (addInnerOutgoingEdge(lid, e.first, e.second.data())) {
+        if (addInnerOutgoingEdge(lid, e.first, e.second.get_data())) {
           ++oenum_;
         }
       }
@@ -2870,7 +2860,7 @@ class DynamicFragment {
           continue;
         }
         for (auto& e : origin->edge_space_[ie_pos]) {
-          addOuterOutgoingEdge(id_mask_ - ov_index, e.first, e.second.data());
+          addOuterOutgoingEdge(id_mask_ - ov_index, e.first, e.second.get_data());
         }
       }
     }

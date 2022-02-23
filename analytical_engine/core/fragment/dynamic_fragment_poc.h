@@ -84,6 +84,8 @@ class DynamicFragmentPoc
   template <typename T>
   using vertex_array_t = VertexArray<vertices_t, T>;
 
+  using vertex_range_t = inner_vertices_t;
+
   DynamicFragmentPoc()
       : FragmentBase<OID_T, VID_T, VDATA_T, EDATA_T, traits_t>(NULL) {}
   explicit DynamicFragmentPoc(std::shared_ptr<vertex_map_t> vm_ptr)
@@ -329,11 +331,13 @@ class DynamicFragmentPoc
       // add edges first, then update ivnum_ and ovnum;
       if (load_strategy_ == LoadStrategy::kBothOutIn) {
         ie_.add_vertices(new_ivnum - ivnum, new_ovnum - ovnum);
+        ie_.add_reversed_edges(edges_to_add);
       }
       oe_.add_vertices(new_ivnum - ivnum, new_ovnum - ovnum);
-      for (auto& e : edges_to_add) {
-        addOrUpdateEdge(e);
-      }
+      oe_.add_edges(edges_to_add);
+      // for (auto& e : edges_to_add) {
+      //  addOrUpdateEdge(e);
+      //}
 
       this->ivnum_ = new_ivnum;
       if (ovnum_ != new_ovnum) {
@@ -632,6 +636,9 @@ class DynamicFragmentPoc
         if (modify_type == gs::rpc::NX_ADD_EDGES) {
           if (src_fid == fid() || dst_fid == fid()) {
             mutation.edges_to_add.emplace_back(src_gid, dst_gid, e_data);
+            if (!directed()) {
+              mutation.edges_to_add.emplace_back(dst_gid, src_gid, e_data);
+            }
           }
         } else if (modify_type == gs::rpc::NX_DEL_EDGES) {
           if (src_fid == fid() || dst_fid == fid()) {

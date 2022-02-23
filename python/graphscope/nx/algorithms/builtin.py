@@ -329,7 +329,11 @@ def single_source_dijkstra_path_length(G, source, weight=None):
     Distances are calculated as sums of weighted edges traversed.
 
     """
-    return AppAssets(algo="sssp_projected", context="vertex_data")(G, source)
+    from timeit import default_timer as timer
+    begin = timer()
+    ret = AppAssets(algo="sssp_projected", context="vertex_data")(G, source)
+    print("run sssp time", timer() - begin)
+    return ret
 
 
 @patch_docstring(nxa.average_shortest_path_length)

@@ -102,11 +102,11 @@ unpack_nbr(dynamic_fragment_impl::Nbr<T>& nbr, const dynamic::Value& d,
 #define SET_PROJECTED_NBR                               \
   void set_nbr() {                                      \
     const auto& original_nbr = map_current_->second;    \
-    const auto& data = original_nbr.data();             \
+    const auto& data = original_nbr.get_data();             \
                                                         \
     unpack_nbr<EDATA_T>(internal_nbr, data, prop_key_); \
-    internal_nbr.set_neighbor(original_nbr.neighbor()); \
-    auto v = internal_nbr.neighbor();                   \
+    internal_nbr.set_neighbor(original_nbr.get_neighbor()); \
+    auto v = internal_nbr.get_neighbor();                   \
     if (v.GetValue() >= ivnum_) {                       \
       v.SetValue(ivnum_ + id_mask_ - v.GetValue());     \
     }                                                   \

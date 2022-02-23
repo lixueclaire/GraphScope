@@ -468,6 +468,12 @@ class VertexArray<DynamicDualVertexRange<VID_T>, T> {
     initMid();
   }
 
+  void Init(const DynamicVertexRange<VID_T>& range) {
+    head_.Init(range.full_range());
+    tail_.Init(VertexRange<VID_T>(mid_, mid_));
+    initMid();
+  }
+
   void Init(const DynamicDualVertexRange<VID_T>& range) {
     head_.Init(range.head());
     tail_.Init(range.tail());
