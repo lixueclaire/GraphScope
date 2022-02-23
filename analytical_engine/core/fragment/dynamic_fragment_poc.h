@@ -253,7 +253,9 @@ class DynamicFragmentPoc
           e.first = sentinel;
         }
       }
-      ie_.remove_reversed_edges(mutation.edges_to_remove);
+      if (load_strategy_ == LoadStrategy::kBothOutIn) {
+        ie_.remove_reversed_edges(mutation.edges_to_remove);
+      }
       oe_.remove_edges(mutation.edges_to_remove);
     }
     {

@@ -31,18 +31,6 @@
 namespace gs {
 
 namespace dynamic_projected_fragment_impl {
-template <typename T>
-typename std::enable_if<!std::is_same<T, grape::EmptyType>::value>::type
-pack_dynamic(dynamic::Value& d, const T& val) {
-  d = dynamic::Value(val);
-}
-
-template <typename T>
-typename std::enable_if<std::is_same<T, grape::EmptyType>::value>::type
-pack_dynamic(dynamic::Value& d, const T& val) {
-  d = dynamic::Value();
-}
-
 /**
  * @brief A specialized UnpackDynamicVData for int32_t type
  */

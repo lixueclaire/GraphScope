@@ -29,20 +29,7 @@
 #include "proto/graphscope/proto/types.pb.h"
 
 namespace gs {
-
 namespace dynamic_projected_fragment_poc_impl {
-template <typename T>
-typename std::enable_if<!std::is_same<T, grape::EmptyType>::value>::type
-pack_dynamic(dynamic::Value& d, const T& val) {
-  d = dynamic::Value(val);
-}
-
-template <typename T>
-typename std::enable_if<std::is_same<T, grape::EmptyType>::value>::type
-pack_dynamic(dynamic::Value& d, const T& val) {
-  d = dynamic::Value();
-}
-
 /**
  * @brief A specialized UnpackDynamicVData for int32_t type
  */
@@ -126,7 +113,7 @@ unpack_nbr(grape::Nbr<VID_T, T>& nbr, const dynamic::Value& d,
 template <typename VID_T, typename EDATA_T>
 class AdjList {
   using NbrT = grape::Nbr<VID_T, dynamic::Value>;
-  using ProjectedNbrT = grape::Nbr<VID_T, EDATA_T>;
+  using InternalNbrT = grape::Nbr<VID_T, EDATA_T>;
 
  public:
   AdjList() = default;
@@ -142,13 +129,13 @@ class AdjList {
   inline size_t Size() const { return end_ - begin_; }
 
   class iterator {
-    using pointer_type = ProjectedNbrT*;
-    using reference_type = ProjectedNbrT&;
+    using pointer_type = InternalNbrT*;
+    using reference_type = InternalNbrT&;
 
    private:
     NbrT* current_;
     const char* prop_key_;
-    ProjectedNbrT internal_nbr;
+    InternalNbrT internal_nbr;
 
     SET_PROJECTED_POC_NBR
 
@@ -199,13 +186,13 @@ class AdjList {
   };
 
   class const_iterator {
-    using pointer_type = const ProjectedNbrT*;
-    using reference_type = const ProjectedNbrT&;
+    using pointer_type = const InternalNbrT*;
+    using reference_type = const InternalNbrT&;
 
    private:
     const NbrT* current_;
     const char* prop_key_;
-    ProjectedNbrT internal_nbr;
+    InternalNbrT internal_nbr;
 
     SET_PROJECTED_POC_NBR
 
@@ -286,7 +273,7 @@ class AdjList {
 template <typename VID_T, typename EDATA_T>
 class ConstAdjList {
   using NbrT = grape::Nbr<VID_T, dynamic::Value>;
-  using ProjectedNbrT = grape::Nbr<VID_T, EDATA_T>;
+  using InternalNbrT = grape::Nbr<VID_T, EDATA_T>;
 
  public:
   ConstAdjList() = default;
@@ -302,13 +289,13 @@ class ConstAdjList {
   inline size_t Size() const { return end_ - begin_; }
 
   class const_iterator {
-    using pointer_type = const ProjectedNbrT*;
-    using reference_type = const ProjectedNbrT&;
+    using pointer_type = const InternalNbrT*;
+    using reference_type = const InternalNbrT&;
 
    private:
     const NbrT* current_;
     const char* prop_key_;
-    ProjectedNbrT internal_nbr;
+    InternalNbrT internal_nbr;
 
     SET_PROJECTED_POC_NBR
 
@@ -424,8 +411,7 @@ class DynamicProjectedFragmentPoc {
   static std::shared_ptr<DynamicProjectedFragmentPoc<VDATA_T, EDATA_T>> Project(
       const std::shared_ptr<grape::DynamicFragmentPoc>& frag, const std::string& v_prop,
       const std::string& e_prop) {
-    return std::make_shared<DynamicProjectedFragmentPoc>(frag.get(), v_prop,
-                                                      e_prop);
+    return std::make_shared<DynamicProjectedFragmentPoc>(frag.get(), v_prop, e_prop);
   }
 
   void PrepareToRunApp(const grape::CommSpec& comm_spec,
