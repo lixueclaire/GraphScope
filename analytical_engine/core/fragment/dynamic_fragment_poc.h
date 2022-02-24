@@ -329,15 +329,30 @@ class DynamicFragmentPoc
       vid_t new_ivnum = vm_ptr_->GetInnerVertexSize(fid_);
       vid_t new_ovnum = ovgid_.size();
       // add edges first, then update ivnum_ and ovnum;
+      // reserve edges
+      oe_.add_vertices(new_ivnum - ivnum, new_ovnum - ovnum);
+      ie_.reserve_edges(edges_to_add);
       if (load_strategy_ == LoadStrategy::kBothOutIn) {
         ie_.add_vertices(new_ivnum - ivnum, new_ovnum - ovnum);
-        ie_.add_reversed_edges(edges_to_add);
+        ie_.reserve_reversed_edges(edges_to_add);
+      } else {
+        oe_.reserve_reversed_edges(edges_to_add);
       }
-      oe_.add_vertices(new_ivnum - ivnum, new_ovnum - ovnum);
-      oe_.add_edges(edges_to_add);
-      // for (auto& e : edges_to_add) {
+      double rate = 0;
+      if (directed_) {
+        rate = static_cast<double>(edges_to_add.size()) / static_cast<double>(oe_.edge_num());
+      } else {
+        rate = 2.0 * static_cast<double>(edges_to_add.size()) / static_cast<double>(oe_.edge_num());
+      }
+      if (rate < oe_.dense_threshold) {
+        addEdgesSparse(edges_to_add);
+      } else {
+        addEdgesDense(edges_to_add);
+      }
+      // add or update edge
+      //  for (auto& e : edges_to_add) {
       //  addOrUpdateEdge(e);
-      //}
+      // }
 
       this->ivnum_ = new_ivnum;
       if (ovnum_ != new_ovnum) {
@@ -643,9 +658,9 @@ class DynamicFragmentPoc
         } else if (modify_type == gs::rpc::NX_DEL_EDGES) {
           if (src_fid == fid() || dst_fid == fid()) {
             mutation.edges_to_remove.emplace_back(src_gid, dst_gid);
-            if (!directed()) {
-              mutation.edges_to_remove.emplace_back(dst_gid, src_gid);
-            }
+            // if (!directed()) {
+            //  mutation.edges_to_remove.emplace_back(dst_gid, src_gid);
+            // }
 
             if (src_gid == dst_gid) {
               // delete selflooops
@@ -1040,8 +1055,9 @@ class DynamicFragmentPoc
     }
   }
 
-  void addOrUpdateEdge(edge_t& e) {
+  bool addOrUpdateEdge(edge_t& e) {
     // TODO(weibin): revise the method.
+    bool ret = true;
     if (load_strategy_ == LoadStrategy::kBothOutIn) {
       if (e.src < ivnum_) {
         // src is inner vertex;
@@ -1052,11 +1068,11 @@ class DynamicFragmentPoc
         });
         if (iter != end) {
           iter->data.Update(e.edata);
+          ret = false;
         } else {
           oe_.add_edge(e);
           if (e.src == e.dst) {
             selfloops_vertices_.insert(e.src);
-            ++selfloops_num_;
           }
         }
       } else {
@@ -1073,6 +1089,7 @@ class DynamicFragmentPoc
         });
         if (iter != end) {
           iter->data.Update(e.edata);
+          ret = false;
         } else {
           ie_.add_reversed_edge(e);
         }
@@ -1089,12 +1106,12 @@ class DynamicFragmentPoc
         });
         if (iter != end) {
           iter->data.Update(e.edata);
+          ret = false;
         } else {
           oe_.add_edge(e);
           if (e.src == e.dst) {
             selfloops_vertices_.insert(e.src);
-            ++selfloops_num_;
-            return;
+            return ret;
           }
         }
       } else {
@@ -1110,6 +1127,7 @@ class DynamicFragmentPoc
         });
         if (iter != end) {
           iter->data.Update(e.edata);
+          ret = false;
         } else {
           oe_.add_reversed_edge(e);
         }
@@ -1117,6 +1135,69 @@ class DynamicFragmentPoc
         oe_.add_reversed_edge(e);
         ivnum_++;
       }
+    }
+    return ret;
+  }
+
+  void addEdgesDense(std::vector<edge_t>& edges) {
+    if (directed_) {
+      std::vector<int> oe_head_degree_to_add(oe_.head_vertex_num(), 0), ie_head_degree_to_add(ie_.head_vertex_num(), 0), dummy_tail_degree;
+      for (auto& e : edges) {
+        if (addOrUpdateEdge(e)) {
+          if (e.src < ivnum_) {
+            ++oe_head_degree_to_add[oe_.head_index(e.src)];
+          }
+          if (e.dst < ivnum_) {
+            ++ie_head_degree_to_add[ie_.head_index(e.src)];
+          }
+        }
+      }
+      oe_.dedup_or_sort_neighbors_dense(oe_head_degree_to_add, dummy_tail_degree);
+      ie_.dedup_or_sort_neighbors_dense(ie_head_degree_to_add, dummy_tail_degree);
+    } else {
+      std::vector<int> oe_head_degree_to_add(oe_.head_vertex_num(), 0), dummy_tail_degree;
+      for (auto& e : edges) {
+        if (addOrUpdateEdge(e)) {
+          if (e.src < ivnum_) {
+            ++oe_head_degree_to_add[oe_.head_index(e.src)];
+          }
+          if (e.dst < ivnum_ && e.src != e.dst) {
+            ++oe_head_degree_to_add[oe_.head_index(e.src)];
+          }
+        }
+      }
+      oe_.dedup_or_sort_neighbors_dense(oe_head_degree_to_add, dummy_tail_degree);
+    }
+  }
+
+  void addEdgesSparse(std::vector<edge_t>& edges) {
+    if (directed_) {
+      std::map<vid_t, int> oe_head_degree_to_add, ie_head_degree_to_add, dummy_tail_degree;
+      for (auto& e : edges) {
+        if (addOrUpdateEdge(e)) {
+          if (e.src < ivnum_) {
+            ++oe_head_degree_to_add[oe_.head_index(e.src)];
+          }
+          if (e.dst < ivnum_) {
+            ++ie_head_degree_to_add[ie_.head_index(e.src)];
+          }
+        }
+      }
+      oe_.dedup_or_sort_neighbors_sparse(oe_head_degree_to_add, dummy_tail_degree);
+      ie_.dedup_or_sort_neighbors_sparse(ie_head_degree_to_add, dummy_tail_degree);
+    } else {
+      std::map<vid_t, int> oe_head_degree_to_add, dummy_tail_degree;
+      for (auto& e : edges) {
+        if (addOrUpdateEdge(e)) {
+          if (e.src < ivnum_) {
+            ++oe_head_degree_to_add[oe_.head_index(e.src)];
+          }
+          if (e.dst < ivnum_ && e.src != e.dst) {
+            ++oe_head_degree_to_add[oe_.head_index(e.src)];
+          }
+        }
+      }
+      oe_.dedup_or_sort_neighbors_sparse(oe_head_degree_to_add, dummy_tail_degree);
     }
   }
 

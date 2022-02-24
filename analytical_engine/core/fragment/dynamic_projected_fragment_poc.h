@@ -393,10 +393,10 @@ class DynamicProjectedFragmentPoc {
   using vertex_array_t = typename fragment_t::vertex_array_t<DATA_T>;
 
   template <typename DATA_T>
-  using inner_vertex_array_t = typename fragment_t::vertex_array_t<DATA_T>;
+  using inner_vertex_array_t = typename fragment_t::inner_vertex_array_t<DATA_T>;
 
   template <typename DATA_T>
-  using outer_vertex_array_t = typename fragment_t::vertex_array_t<DATA_T>;
+  using outer_vertex_array_t = typename fragment_t::outer_vertex_array_t<DATA_T>;
 
   using vertex_range_t = inner_vertices_t;
 

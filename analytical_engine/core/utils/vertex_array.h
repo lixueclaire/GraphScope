@@ -45,7 +45,7 @@ class DynamicVertexRange {
    public:
     iterator() noexcept : cur_() {}
     explicit iterator(const T& v) noexcept : cur_(v) {}
-    explicit iterator(const T& v, const T& end, Array<bool>* filter,
+    explicit iterator(const T& v, const T& end, const Array<bool>* filter,
                       bool reversed = false) noexcept
         : cur_(v), end_(end), filter_(filter), reversed_(reversed) {}
 
