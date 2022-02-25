@@ -78,7 +78,9 @@ class Value : public rapidjson::Value {
 
   // Copy assignment operator.
   Value& operator=(const Value& rhs) {
-    Base::CopyFrom(rhs, allocator_);
+    if (this != &rhs) {
+      Base::CopyFrom(rhs, allocator_);
+    }
     return *this;
   }
   Value& operator=(const rapidjson::Value& rhs) {
@@ -88,7 +90,9 @@ class Value : public rapidjson::Value {
 
   // Move assignment.
   Value& operator=(Value&& rhs) noexcept {
-    Base::operator=(rhs.Move());
+    if (this != &rhs) {
+      Base::operator=(rhs.Move());
+    }
     return *this;
   }
   Value& operator=(rapidjson::Value&& rhs) noexcept {
@@ -128,7 +132,11 @@ class Value : public rapidjson::Value {
   explicit Value(const std::string& s) : Base(s.c_str(), allocator_) {}
   explicit Value(const char* s) : Base(s, allocator_) {}
 
-  void CopyFrom(const Value& rhs) { Base::CopyFrom(rhs, allocator_); }
+  void CopyFrom(const Value& rhs) {
+    if (this != &rhs) {
+      Base::CopyFrom(rhs, allocator_);
+    }
+  }
 
   // Insert for object
   template <typename T>

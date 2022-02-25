@@ -194,7 +194,8 @@ class DynamicFragmentPoc
   using base_t::vm_ptr_;
   void Mutate(Mutation<vid_t, vdata_t, edata_t>& mutation) {
     vertex_t v;
-    if (static_cast<double>(mutation.vertices_to_remove.size()) /
+    if (mutation.vertices_to_remove.empty() &&
+        static_cast<double>(mutation.vertices_to_remove.size()) /
             static_cast<double>(this->GetVerticesNum()) <
         0.1) {
       std::set<vertex_t> sparse_set;
@@ -211,13 +212,15 @@ class DynamicFragmentPoc
           --alive_ivnum_;
         }
       }
-      auto func = [&sparse_set](vid_t i, const nbr_t& e) {
-        return sparse_set.find(e.neighbor) != sparse_set.end();
-      };
-      if (load_strategy_ == LoadStrategy::kBothOutIn) {
-        ie_.remove_if(func);
+      if (!sparse_set.empty()) {
+        auto func = [&sparse_set](vid_t i, const nbr_t& e) {
+          return sparse_set.find(e.neighbor) != sparse_set.end();
+        };
+        if (load_strategy_ == LoadStrategy::kBothOutIn) {
+          ie_.remove_if(func);
+        }
+        oe_.remove_if(func);
       }
-      oe_.remove_if(func);
     } else if (!mutation.vertices_to_remove.empty()) {
       vertex_array_t<bool> dense_bitset;
       dense_bitset.Init(Vertices(), false);
@@ -331,12 +334,12 @@ class DynamicFragmentPoc
       // add edges first, then update ivnum_ and ovnum;
       // reserve edges
       oe_.add_vertices(new_ivnum - ivnum, new_ovnum - ovnum);
-      ie_.reserve_edges(edges_to_add);
       if (load_strategy_ == LoadStrategy::kBothOutIn) {
         ie_.add_vertices(new_ivnum - ivnum, new_ovnum - ovnum);
+        oe_.reserve_forward_edges(edges_to_add);
         ie_.reserve_reversed_edges(edges_to_add);
       } else {
-        oe_.reserve_reversed_edges(edges_to_add);
+        oe_.reserve_edges(edges_to_add);
       }
       double rate = 0;
       if (directed_) {
@@ -650,17 +653,17 @@ class DynamicFragmentPoc
         }
         if (modify_type == gs::rpc::NX_ADD_EDGES) {
           if (src_fid == fid() || dst_fid == fid()) {
-            mutation.edges_to_add.emplace_back(src_gid, dst_gid, e_data);
-            if (!directed()) {
-              mutation.edges_to_add.emplace_back(dst_gid, src_gid, e_data);
-            }
+            mutation.edges_to_add.emplace_back(src_gid, dst_gid, std::move(e_data));
+            // if (!directed()) {
+            //   mutation.edges_to_add.emplace_back(dst_gid, src_gid, e_data);
+            // }
           }
         } else if (modify_type == gs::rpc::NX_DEL_EDGES) {
           if (src_fid == fid() || dst_fid == fid()) {
             mutation.edges_to_remove.emplace_back(src_gid, dst_gid);
-            // if (!directed()) {
-            //  mutation.edges_to_remove.emplace_back(dst_gid, src_gid);
-            // }
+            if (!directed()) {
+              mutation.edges_to_remove.emplace_back(dst_gid, src_gid);
+            }
 
             if (src_gid == dst_gid) {
               // delete selflooops
@@ -783,7 +786,8 @@ class DynamicFragmentPoc
           return val.neighbor.GetValue() == vlid;
         });
         if (iter != end) {
-          data = iter->data;
+          LOG(INFO) << "Get Edge Data: " << iter->data;
+          // data = iter->data;
           return true;
         }
       }
@@ -1057,6 +1061,7 @@ class DynamicFragmentPoc
 
   bool addOrUpdateEdge(edge_t& e) {
     // TODO(weibin): revise the method.
+
     bool ret = true;
     if (load_strategy_ == LoadStrategy::kBothOutIn) {
       if (e.src < ivnum_) {
@@ -1140,6 +1145,7 @@ class DynamicFragmentPoc
   }
 
   void addEdgesDense(std::vector<edge_t>& edges) {
+    LOG(INFO) << "addEdgesDense";
     if (directed_) {
       std::vector<int> oe_head_degree_to_add(oe_.head_vertex_num(), 0), ie_head_degree_to_add(ie_.head_vertex_num(), 0), dummy_tail_degree;
       for (auto& e : edges) {
@@ -1148,7 +1154,7 @@ class DynamicFragmentPoc
             ++oe_head_degree_to_add[oe_.head_index(e.src)];
           }
           if (e.dst < ivnum_) {
-            ++ie_head_degree_to_add[ie_.head_index(e.src)];
+            ++ie_head_degree_to_add[ie_.head_index(e.dst)];
           }
         }
       }
@@ -1162,7 +1168,7 @@ class DynamicFragmentPoc
             ++oe_head_degree_to_add[oe_.head_index(e.src)];
           }
           if (e.dst < ivnum_ && e.src != e.dst) {
-            ++oe_head_degree_to_add[oe_.head_index(e.src)];
+            ++oe_head_degree_to_add[oe_.head_index(e.dst)];
           }
         }
       }
@@ -1171,6 +1177,7 @@ class DynamicFragmentPoc
   }
 
   void addEdgesSparse(std::vector<edge_t>& edges) {
+    LOG(INFO) << "addEdgesSparse";
     if (directed_) {
       std::map<vid_t, int> oe_head_degree_to_add, ie_head_degree_to_add, dummy_tail_degree;
       for (auto& e : edges) {
@@ -1179,7 +1186,7 @@ class DynamicFragmentPoc
             ++oe_head_degree_to_add[oe_.head_index(e.src)];
           }
           if (e.dst < ivnum_) {
-            ++ie_head_degree_to_add[ie_.head_index(e.src)];
+            ++ie_head_degree_to_add[ie_.head_index(e.dst)];
           }
         }
       }
@@ -1190,10 +1197,12 @@ class DynamicFragmentPoc
       for (auto& e : edges) {
         if (addOrUpdateEdge(e)) {
           if (e.src < ivnum_) {
+            LOG(INFO) << e.src << " has degree to add.";
             ++oe_head_degree_to_add[oe_.head_index(e.src)];
           }
           if (e.dst < ivnum_ && e.src != e.dst) {
-            ++oe_head_degree_to_add[oe_.head_index(e.src)];
+            LOG(INFO) << e.dst << " has degree to add.";
+            ++oe_head_degree_to_add[oe_.head_index(e.dst)];
           }
         }
       }
