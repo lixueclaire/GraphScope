@@ -136,11 +136,11 @@ struct EdgeArrayBuilder<arrow::Int64Builder> {
 
     for (const auto& u : inner_vertices) {
       for (auto& e : src_frag->GetOutgoingAdjList(u)) {
-        if (!src_frag->directed() && (u.GetValue() > e.neighbor().GetValue())) {
+        if (!src_frag->directed() && (u.GetValue() > e.get_neighbor().GetValue())) {
           continue;  // if src_frag is undirected, just append one edge.
         }
 
-        auto& data = e.data();
+        auto& data = e.get_data();
         if (data.HasMember(prop_key) == 0) {
           ARROW_OK_OR_RAISE(builder.AppendNull());
         } else {
@@ -149,9 +149,9 @@ struct EdgeArrayBuilder<arrow::Int64Builder> {
       }
       if (src_frag->directed()) {
         for (auto& e : src_frag->GetIncomingAdjList(u)) {
-          auto& v = e.neighbor();
+          auto& v = e.get_neighbor();
           if (src_frag->IsOuterVertex(v)) {
-            auto& data = e.data();
+            auto& data = e.get_data();
             if (data.HasMember(prop_key) == 0) {
               ARROW_OK_OR_RAISE(builder.AppendNull());
             } else {
@@ -179,11 +179,11 @@ struct EdgeArrayBuilder<arrow::DoubleBuilder> {
     std::shared_ptr<arrow::Array> array;
     for (const auto& u : inner_vertices) {
       for (auto& e : src_frag->GetOutgoingAdjList(u)) {
-        if (!src_frag->directed() && (u.GetValue() > e.neighbor().GetValue())) {
+        if (!src_frag->directed() && (u.GetValue() > e.get_neighbor().GetValue())) {
           continue;  // if src_frag is undirected, just append one edge.
         }
 
-        auto& data = e.data();
+        auto& data = e.get_data();
         if (data.HasMember(prop_key) == 0) {
           ARROW_OK_OR_RAISE(builder.AppendNull());
         } else {
@@ -192,9 +192,9 @@ struct EdgeArrayBuilder<arrow::DoubleBuilder> {
       }
       if (src_frag->directed()) {
         for (auto& e : src_frag->GetIncomingAdjList(u)) {
-          auto& v = e.neighbor();
+          auto& v = e.get_neighbor();
           if (src_frag->IsOuterVertex(v)) {
-            auto& data = e.data();
+            auto& data = e.get_data();
             if (data.HasMember(prop_key) == 0) {
               ARROW_OK_OR_RAISE(builder.AppendNull());
             } else {
@@ -223,11 +223,11 @@ struct EdgeArrayBuilder<arrow::LargeStringBuilder> {
 
     for (const auto& u : inner_vertices) {
       for (auto& e : src_frag->GetOutgoingAdjList(u)) {
-        if (!src_frag->directed() && (u.GetValue() > e.neighbor().GetValue())) {
+        if (!src_frag->directed() && (u.GetValue() > e.get_neighbor().GetValue())) {
           continue;  // if src_frag is undirected, just append one edge.
         }
 
-        auto& data = e.data();
+        auto& data = e.get_data();
         if (data.HasMember(prop_key) == 0) {
           ARROW_OK_OR_RAISE(builder.AppendNull());
         } else {
@@ -236,9 +236,9 @@ struct EdgeArrayBuilder<arrow::LargeStringBuilder> {
       }
       if (src_frag->directed()) {
         for (auto& e : src_frag->GetIncomingAdjList(u)) {
-          auto& v = e.neighbor();
+          auto& v = e.get_neighbor();
           if (src_frag->IsOuterVertex(v)) {
-            auto& data = e.data();
+            auto& data = e.get_data();
             if (data.HasMember(prop_key) == 0) {
               ARROW_OK_OR_RAISE(builder.AppendNull());
             } else {
@@ -290,7 +290,7 @@ struct COOBuilder<DST_FRAG_T, int64_t> {
       CHECK(dst_vm->GetGid(fid, 0, u_oid.GetInt64(), u_gid));
 
       for (auto& e : src_frag->GetOutgoingAdjList(u)) {
-        auto& v = e.neighbor();
+        auto& v = e.get_neighbor();
         if (!src_frag->directed() && u.GetValue() > v.GetValue()) {
           continue;
         }
@@ -303,7 +303,7 @@ struct COOBuilder<DST_FRAG_T, int64_t> {
       }
       if (src_frag->directed()) {
         for (auto& e : src_frag->GetIncomingAdjList(u)) {
-          auto& v = e.neighbor();
+          auto& v = e.get_neighbor();
           if (src_frag->IsOuterVertex(v)) {
             auto v_oid = src_frag->GetId(v);
             vineyard::property_graph_types::VID_TYPE v_gid;
@@ -351,7 +351,7 @@ struct COOBuilder<DST_FRAG_T, std::string> {
       CHECK(dst_vm->GetGid(fid, 0, u_oid.GetString(), u_gid));
 
       for (auto& e : src_frag->GetOutgoingAdjList(u)) {
-        auto& v = e.neighbor();
+        auto& v = e.get_neighbor();
         if (!src_frag->directed() && u.GetValue() > v.GetValue()) {
           continue;
         }
@@ -364,7 +364,7 @@ struct COOBuilder<DST_FRAG_T, std::string> {
       }
       if (src_frag->directed()) {
         for (auto& e : src_frag->GetIncomingAdjList(u)) {
-          auto& v = e.neighbor();
+          auto& v = e.get_neighbor();
           if (src_frag->IsOuterVertex(v)) {
             auto v_oid = src_frag->GetId(v);
             vineyard::property_graph_types::VID_TYPE v_gid;

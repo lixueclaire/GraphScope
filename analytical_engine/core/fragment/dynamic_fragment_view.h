@@ -318,6 +318,7 @@ class DynamicFragmentView : public DynamicFragment {
   FragmentViewType view_type_;
 };
 
+/*
 class DynamicFragmentViewPoc : public grape::DynamicFragmentPoc {
  public:
   using fragment_t = grape::DynamicFragmentPoc;
@@ -513,6 +514,7 @@ class DynamicFragmentViewPoc : public grape::DynamicFragmentPoc {
   fragment_t* fragment_;
   FragmentViewType view_type_;
 };
+*/
 
 }  // namespace gs
 #endif  // NETWORKX

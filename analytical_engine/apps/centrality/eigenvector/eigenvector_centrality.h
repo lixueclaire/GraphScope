@@ -94,7 +94,7 @@ class EigenvectorCentrality
     auto& x = ctx.x;
     auto& x_last = ctx.x_last;
 
-    if (frag.directed()) {
+    if (false) {
       ForEach(inner_vertices.begin(), inner_vertices.end(),
               [&x, &x_last, &frag](int tid, vertex_t v) {
                 auto es = frag.GetIncomingAdjList(v);

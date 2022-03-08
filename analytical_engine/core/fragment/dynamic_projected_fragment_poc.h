@@ -381,10 +381,10 @@ class DynamicProjectedFragmentPoc {
   using vertex_t = typename fragment_t::vertex_t;
   using vdata_t = VDATA_T;
   using edata_t = EDATA_T;
-  using adj_list_t =
-      dynamic_projected_fragment_poc_impl::AdjList<vid_t, edata_t>;
-  using const_adj_list_t =
-      dynamic_projected_fragment_poc_impl::ConstAdjList<vid_t, edata_t>;
+  using adj_list_t = typename fragment_t::adj_list_t;
+      // dynamic_projected_fragment_poc_impl::AdjList<vid_t, edata_t>;
+  using const_adj_list_t = typename fragment_t::const_adj_list_t;
+      // dynamic_projected_fragment_poc_impl::ConstAdjList<vid_t, edata_t>;
   using inner_vertices_t = typename fragment_t::inner_vertices_t;
   using outer_vertices_t = typename fragment_t::outer_vertices_t;
   using vertices_t = typename fragment_t::vertices_t;
@@ -413,7 +413,18 @@ class DynamicProjectedFragmentPoc {
   static std::shared_ptr<DynamicProjectedFragmentPoc<VDATA_T, EDATA_T>> Project(
       const std::shared_ptr<grape::DynamicFragmentPoc>& frag, const std::string& v_prop,
       const std::string& e_prop) {
-    return std::make_shared<DynamicProjectedFragmentPoc>(frag.get(), v_prop, e_prop);
+    auto project_fragment =  std::make_shared<DynamicProjectedFragmentPoc>(frag.get(), v_prop, e_prop);
+    vertex_t n;
+    LOG(INFO) << "Start iterating project fragment.";
+    double start = grape::GetCurrentTime();
+    for (auto& v : project_fragment->InnerVertices()) {
+	    for (auto& e : project_fragment->GetOutgoingAdjList(v)) {
+		    n = e.get_neighbor();
+	    }
+    }
+    LOG(INFO) << "Iteration project fragment time: " << grape::GetCurrentTime() - start;
+    LOG(INFO) << "n=" << n.GetValue();
+    return project_fragment;
   }
 
   void PrepareToRunApp(const grape::CommSpec& comm_spec,
@@ -427,13 +438,13 @@ class DynamicProjectedFragmentPoc {
 
   inline bool directed() const { return fragment_->directed(); }
 
-  inline vertices_t Vertices() const { return fragment_->Vertices(); }
+  inline const vertices_t& Vertices() const { return fragment_->Vertices(); }
 
-  inline inner_vertices_t InnerVertices() const {
+  inline const inner_vertices_t& InnerVertices() const {
     return fragment_->InnerVertices();
   }
 
-  inline outer_vertices_t OuterVertices() const {
+  inline const outer_vertices_t& OuterVertices() const {
     return fragment_->OuterVertices();
   }
 
@@ -527,11 +538,13 @@ class DynamicProjectedFragmentPoc {
   }
 
   inline adj_list_t GetIncomingAdjList(const vertex_t& v) {
-    return adj_list_t(fragment_->get_ie_begin(v), fragment_->get_ie_end(v), e_prop_key_);
+    // return adj_list_t(fragment_->get_ie_begin(v), fragment_->get_ie_end(v), e_prop_key_);
+    return adj_list_t(fragment_->get_ie_begin(v), fragment_->get_ie_end(v));
   }
 
   inline const_adj_list_t GetIncomingAdjList(const vertex_t& v) const {
-    return const_adj_list_t(fragment_->get_ie_begin(v), fragment_->get_ie_end(v), e_prop_key_);
+    // return const_adj_list_t(fragment_->get_ie_begin(v), fragment_->get_ie_end(v), e_prop_key_);
+    return const_adj_list_t(fragment_->get_ie_begin(v), fragment_->get_ie_end(v));
   }
 
   inline adj_list_t GetIncomingInnerVertexAdjList(const vertex_t& v) {
@@ -554,11 +567,13 @@ class DynamicProjectedFragmentPoc {
   }
 
   inline adj_list_t GetOutgoingAdjList(const vertex_t& v) {
-    return adj_list_t(fragment_->get_oe_begin(v), fragment_->get_oe_end(v), e_prop_key_);
+    // return adj_list_t(fragment_->get_oe_begin(v), fragment_->get_oe_end(v), e_prop_key_);
+    return adj_list_t(fragment_->get_oe_begin(v), fragment_->get_oe_end(v));
   }
 
   inline const_adj_list_t GetOutgoingAdjList(const vertex_t& v) const {
-    return const_adj_list_t(fragment_->get_oe_begin(v), fragment_->get_oe_end(v), e_prop_key_);
+    // return const_adj_list_t(fragment_->get_oe_begin(v), fragment_->get_oe_end(v), e_prop_key_);
+    return const_adj_list_t(fragment_->get_oe_begin(v), fragment_->get_oe_end(v));
   }
 
   inline adj_list_t GetOutgoingInnerVertexAdjList(const vertex_t& v) {

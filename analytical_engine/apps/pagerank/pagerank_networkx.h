@@ -54,6 +54,25 @@ class PageRankNetworkX
   void PEval(const fragment_t& frag, context_t& ctx,
              message_manager_t& messages) {
     auto inner_vertices = frag.InnerVertices();
+    
+    // LOG(INFO) << "start iterate graph.";
+    /*
+    grape::VertexRange<vid_t> ivs(0, frag.GetInnerVerticesNum());
+    double start = grape::GetCurrentTime();
+    for (auto& v : frag.fragment_->InnerVertices()) {
+      for (auto& e : frag.fragment_->GetOutgoingAdjList(v)) {
+         auto u = e.get_neighbor();
+      }
+    }
+    // for (auto& v : frag.fragment_->InnerVertices()) {
+    for (auto& v : ivs) {
+      for (auto& e : frag.GetOutgoingAdjList(v)) {
+         auto u = e.get_neighbor();
+      }
+    }
+    LOG(INFO) << "iteration time: " << grape::GetCurrentTime() - start;
+    */
+
 
     size_t graph_vnum = frag.GetTotalVerticesNum();
     messages.InitChannels(thread_num());

@@ -176,7 +176,7 @@ class DynamicFragmentReporter : public grape::Communicator {
       report_type == rpc::PREDS_BY_NODE
           ? edges = fragment->GetIncomingAdjList(v)
           : edges = fragment->GetOutgoingAdjList(v);
-      for (auto& e : edges) {
+      for (const auto& e : edges) {
         id_array.PushBack(fragment->GetId(e.get_neighbor()));
         data_array.PushBack(e.get_data());
       }
@@ -349,7 +349,7 @@ class DynamicFragmentPocReporter : public grape::Communicator {
   std::string getEdgeData(std::shared_ptr<fragment_t>& fragment, const oid_t& u,
                           const oid_t& v) {
     dynamic::Value ref_data;
-    fragment->GetEdgeData(u, v, ref_data);
+    // fragment->GetEdgeData(u, v, ref_data);
     return ref_data.IsNull() ? std::string() : dynamic::Stringify(ref_data);
   }
 
@@ -365,9 +365,9 @@ class DynamicFragmentPocReporter : public grape::Communicator {
       report_type == rpc::PREDS_BY_NODE
           ? edges = fragment->GetIncomingAdjList(v)
           : edges = fragment->GetOutgoingAdjList(v);
-      for (auto& e : edges) {
+      for (const auto& e : edges) {
         id_array.PushBack(fragment->GetId(e.neighbor));
-        data_array.PushBack(e.data);
+        // data_array.PushBack(e.data);
       }
       nbrs.PushBack(id_array).PushBack(data_array);
     }

@@ -801,6 +801,16 @@ class DeMutableCSRBuilder<
     head_builder_.init(max_head_id_ - min_id_);
     tail_builder_.init(max_id_ - min_tail_id_);
   }
+  void init(DualVertexRange<VID_T> range, bool dedup = false) {
+    min_id_ = range.head().begin_value();
+    max_id_ = range.tail().end_value();
+    max_head_id_ = range.head().end_value();
+    min_tail_id_ = range.tail().begin_value();
+    dedup_ = dedup;
+
+    head_builder_.init(max_head_id_ - min_id_);
+    tail_builder_.init(max_id_ - min_tail_id_);
+  }
 
   void inc_degree(VID_T i) {
     if (in_head(i)) {

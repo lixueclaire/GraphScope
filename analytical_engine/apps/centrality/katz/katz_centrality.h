@@ -50,6 +50,7 @@ class KatzCentrality
 
   bool CheckTerm(const fragment_t& frag, context_t& ctx, int thrd_num) {
     auto inner_vertices = frag.InnerVertices();
+//	  grape::VertexRange<vid_t> inner_vertices(0, frag.GetInnerVerticesNum());
     std::vector<double> thread_local_sum(thrd_num, 0.0);
     std::vector<double> thread_local_delta_sum(thrd_num, 0.0);
     double local_sum = 0.0, local_delta_sum = 0.0;
@@ -85,6 +86,7 @@ class KatzCentrality
   void pullAndSend(const fragment_t& frag, context_t& ctx,
                    message_manager_t& messages) {
     auto inner_vertices = frag.InnerVertices();
+//	  grape::VertexRange<vid_t> inner_vertices(0, frag.GetInnerVerticesNum());
     if (frag.directed()) {
       ForEach(inner_vertices.begin(), inner_vertices.end(),
               [&ctx, &frag, &messages](int tid, vertex_t v) {
@@ -148,6 +150,7 @@ class KatzCentrality
       CHECK_GT(global_sum, 0);
       if (ctx.normalized) {
         auto inner_vertices = frag.InnerVertices();
+// 	  grape::VertexRange<vid_t> inner_vertices(0, frag.GetInnerVerticesNum());
         double s = 1.0 / std::sqrt(global_sum);
         ForEach(inner_vertices.begin(), inner_vertices.end(),
                 [&x, &s](int tid, vertex_t v) { x[v] *= s; });

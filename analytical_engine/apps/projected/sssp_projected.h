@@ -98,6 +98,7 @@ class SSSPProjected : public AppBase<FRAG_T, SSSPProjectedContext<FRAG_T>> {
         double edata = 1.0;
         static_if<!std::is_same<edata_t, grape::EmptyType>{}>(
             [&](auto& e, auto& data) {
+              // data = static_cast<double>(e.data["weight"].GetDouble());
               data = static_cast<double>(e.data);
             })(e, edata);
         ndistv = distu + edata;

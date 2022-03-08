@@ -40,6 +40,7 @@ class PageRankNetworkXContext
 
   void Init(grape::ParallelMessageManager& messages, double alpha,
             int max_round, double tolerance) {
+    LOG(INFO) << "alpha=" << alpha << " max_round=" << max_round << " tol=" << tolerance;
     auto& frag = this->fragment();
     auto inner_vertices = frag.InnerVertices();
     auto vertices = frag.Vertices();

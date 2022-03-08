@@ -929,7 +929,7 @@ class FragmentWrapper<DynamicFragment> : public IFragmentWrapper {
 template <>
 class FragmentWrapper<grape::DynamicFragmentPoc> : public IFragmentWrapper {
   using fragment_t = grape::DynamicFragmentPoc;
-  using fragment_view_t = DynamicFragmentViewPoc;
+  // using fragment_view_t = DynamicFragmentViewPoc;
 
  public:
   FragmentWrapper(const std::string& id, rpc::graph::GraphDefPb graph_def,
@@ -1074,6 +1074,7 @@ class FragmentWrapper<grape::DynamicFragmentPoc> : public IFragmentWrapper {
   bl::result<std::shared_ptr<IFragmentWrapper>> CreateGraphView(
       const grape::CommSpec& comm_spec, const std::string& view_graph_id,
       const std::string& view_type) override {
+	  /*
     auto frag_view = std::make_shared<fragment_view_t>(
         fragment_.get(), parse_fragment_view_type(view_type));
 
@@ -1082,6 +1083,9 @@ class FragmentWrapper<grape::DynamicFragmentPoc> : public IFragmentWrapper {
     auto wrapper = std::make_shared<FragmentWrapper<fragment_t>>(
         view_graph_id, dst_graph_def, frag_view);
     return std::dynamic_pointer_cast<IFragmentWrapper>(wrapper);
+    */
+    RETURN_GS_ERROR(vineyard::ErrorCode::kInvalidOperationError,
+                    "Cannot convert to the directed DynamicProjectedFragment");
   }
 
  private:

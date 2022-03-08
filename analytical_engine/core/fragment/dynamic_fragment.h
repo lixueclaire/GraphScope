@@ -1581,6 +1581,13 @@ class DynamicFragment {
     }
     LOG(INFO) << "Origin modify edges time: "
               << grape::GetCurrentTime() - start;
+    double t = grape::GetCurrentTime();
+    for (auto& v : InnerVertices()) {
+      for (auto& e : this->GetOutgoingAdjList(v)) {
+        auto n = e.get_neighbor();
+      }
+    }
+    LOG(INFO) << "Iterate time: " << grape::GetCurrentTime() - t; 
   }
 
   void ModifyVertices(dynamic::Value& vertices_to_modify,

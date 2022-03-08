@@ -35,6 +35,10 @@ class EigenvectorCentralityContext
 
   void Init(grape::ParallelMessageManager& messages, double tolerance,
             int max_round) {
+    LOG(INFO) << "max_round=" << max_round << " tol=" << tolerance;
+    tolerance = 1e-6;
+    max_round = 100;
+    LOG(INFO) << "max_round=" << max_round << " tol=" << tolerance;
     auto& frag = this->fragment();
     auto vertices = frag.Vertices();
 

@@ -22,6 +22,7 @@
 #include "boost/algorithm/string/split.hpp"
 
 #include "vineyard/io/io/io_factory.h"
+#include "grape/fragment/mutable_edgecut_fragment.h"
 
 #ifdef ENABLE_JAVA_SDK
 #include "core/context/java_pie_projected_context.h"
@@ -36,6 +37,7 @@
 #include "core/context/vertex_property_context.h"
 #include "core/fragment/dynamic_fragment.h"
 #include "core/fragment/dynamic_fragment_poc.h"
+#include "core/fragment/mutable_edgecut_fragment_dy.h"
 #include "core/grape_instance.h"
 #include "core/io/property_parser.h"
 #include "core/launcher.h"
@@ -293,8 +295,10 @@ bl::result<std::string> GrapeInstance::query(const rpc::GSParams& params,
   std::string context_key = "ctx_" + generateId();
 
   BOOST_LEAF_AUTO(worker, app->CreateWorker(fragment, comm_spec_, spec));
+  double start = grape::GetCurrentTime();
   BOOST_LEAF_AUTO(ctx_wrapper,
                   app->Query(worker.get(), query_args, context_key, wrapper));
+  LOG(INFO) << "query time: " << grape::GetCurrentTime() - start;
   std::string context_type;
   std::string context_schema;
   if (ctx_wrapper != nullptr) {
@@ -394,6 +398,21 @@ bl::result<void> GrapeInstance::modifyEdges(const rpc::GSParams& params) {
     double start = grape::GetCurrentTime();
     fragment->ModifyEdges(edges, common_attr, modify_type, weight);
     LOG(INFO) << "Poc ModifyEdges time: " << grape::GetCurrentTime() - start;
+    // start = grape::GetCurrentTime();
+    // for (auto& v : fragment->InnerVertices()) {
+    //   for (auto& e : fragment->GetOutgoingAdjList(v)) {
+    //      auto n = e.get_neighbor();
+    //   }
+    // }
+    // LOG(INFO) << "Iterating time outside: " << grape::GetCurrentTime() - start;
+    // grape::MutableEdgecutFragment<fragment_t::oid_t, fragment_t::vid_t, fragment_t::vdata_t, fragment_t::edata_t, grape::LoadStrategy::kOnlyOut> mu_frag(fragment->GetVertexMap());
+    // grape::DynamicFragmentPoc mu_frag(fragment->GetVertexMap());
+    // grape::MutableEdgecutFragmentDy mu_frag(fragment->GetVertexMap());
+    // std::vector<fragment_t::internal_vertex_t> empty_v;
+    // std::vector<fragment_t::edge_t> empty_e;
+    // mu_frag.Init(fragment->fid(), fragment->directed(), empty_v, empty_e);
+    // mu_frag.Mutate(mutation);
+    // mu_frag.Init(fragment->fid(), fragment->directed(), mutation.vertices_to_add, mutation.edges_to_add);
   } else {
     LOG(INFO) << "Begin Origin ModifyEdges.";
     double start = grape::GetCurrentTime();

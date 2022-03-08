@@ -16,6 +16,7 @@ limitations under the License.
 #ifndef ANALYTICAL_ENGINE_CORE_UTILS_VERTEX_ARRAY_H_
 #define ANALYTICAL_ENGINE_CORE_UTILS_VERTEX_ARRAY_H_
 
+#include "grape/utils/bitset.h"
 #include "grape/utils/vertex_array.h"
 
 namespace grape {
@@ -26,7 +27,7 @@ class DynamicVertexRange {
   using vertex_t = Vertex<T>;
   DynamicVertexRange() = default;
   explicit DynamicVertexRange(const T& begin, const T& end, const T& size,
-                              Array<bool>* filter, bool reversed = false)
+                              Bitset* filter, bool reversed = false)
       : begin_(begin),
         end_(end),
         size_(size),
@@ -39,13 +40,13 @@ class DynamicVertexRange {
    private:
     Vertex<T> cur_;
     T end_;
-    const Array<bool>* filter_;
+    const Bitset* filter_;
     bool reversed_;
 
    public:
     iterator() noexcept : cur_() {}
     explicit iterator(const T& v) noexcept : cur_(v) {}
-    explicit iterator(const T& v, const T& end, const Array<bool>* filter,
+    explicit iterator(const T& v, const T& end, const Bitset* filter,
                       bool reversed = false) noexcept
         : cur_(v), end_(end), filter_(filter), reversed_(reversed) {}
 
@@ -145,7 +146,7 @@ class DynamicVertexRange {
   }
 
   void SetRange(const T& begin, const T& end, const T& size,
-                Array<bool>* filter, bool reversed = false) {
+                Bitset* filter, bool reversed = false) {
     begin_ = begin;
     end_ = end;
     size_ = size;
@@ -178,7 +179,7 @@ class DynamicVertexRange {
  private:
   T begin_, end_;
   T size_;
-  Array<bool>* filter_;
+  Bitset* filter_;
   bool reversed_;
 };
 
@@ -189,7 +190,7 @@ class DynamicDualVertexRange {
   DynamicDualVertexRange() {}
   explicit DynamicDualVertexRange(
       const VID_T& head_begin, const VID_T& head_end, const VID_T& tail_begin,
-      const VID_T& tail_end, Array<bool>* head_filter, Array<bool>* tail_filter)
+      const VID_T& tail_end, Bitset* head_filter, Bitset* tail_filter)
       : head_begin_(head_begin),
         head_end_(head_end),
         tail_begin_(tail_begin),
@@ -199,7 +200,7 @@ class DynamicDualVertexRange {
 
   void SetRange(const VID_T& head_begin, const VID_T& head_end,
                 const VID_T& tail_begin, const VID_T& tail_end,
-                Array<bool>* head_filter, Array<bool>* tail_filter) {
+                Bitset* head_filter, Bitset* tail_filter) {
     head_begin_ = head_begin;
     tail_begin_ = tail_begin;
     head_end_ = std::max(head_begin_, head_end);
@@ -225,13 +226,13 @@ class DynamicDualVertexRange {
     VID_T head_end_;
     VID_T tail_begin_;
     VID_T tail_end_;
-    const Array<bool>* head_filter_;
-    const Array<bool>* tail_filter_;
+    const Bitset* head_filter_;
+    const Bitset* tail_filter_;
 
    public:
     explicit iterator(const VID_T& v, const VID_T& x, const VID_T& y,
-                      const VID_T& tail_end, const Array<bool>* head_filter,
-                      const Array<bool>* tail_filter) noexcept
+                      const VID_T& tail_end, const Bitset* head_filter,
+                      const Bitset* tail_filter) noexcept
         : cur_(v),
           head_end_(x),
           tail_begin_(y),
@@ -371,8 +372,8 @@ class DynamicDualVertexRange {
 
  private:
   VID_T head_begin_, head_end_, tail_begin_, tail_end_;
-  Array<bool>* head_filter_;
-  Array<bool>* tail_filter_;
+  Bitset* head_filter_;
+  Bitset* tail_filter_;
 };
 
 template <typename VID_T, typename T>

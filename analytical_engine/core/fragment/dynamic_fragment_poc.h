@@ -20,9 +20,12 @@ struct DynamicFragmentTraits {
   using VDATA_T = gs::dynamic::Value;
   using EDATA_T = gs::dynamic::Value;
   using VERTEX_MAP_T = GlobalVertexMap<OID_T, VID_T>;
-  using inner_vertices_t = DynamicVertexRange<VID_T>;
-  using outer_vertices_t = DynamicVertexRange<VID_T>;
-  using vertices_t = DynamicDualVertexRange<VID_T>;
+  // using inner_vertices_t = DynamicVertexRange<VID_T>;
+  // using outer_vertices_t = DynamicVertexRange<VID_T>;
+  // using vertices_t = DynamicDualVertexRange<VID_T>;
+  using inner_vertices_t = VertexRange<VID_T>;
+  using outer_vertices_t = VertexRange<VID_T>;
+  using vertices_t = DualVertexRange<VID_T>;
   using sub_vertices_t = VertexVector<VID_T>;
 
   using fragment_adj_list_t =
@@ -142,20 +145,27 @@ class DynamicFragmentPoc
     }
 
     iv_alive_.clear();
-    iv_alive_.resize(ivnum_, true);
+    iv_alive_.resize(ivnum_);
     ov_alive_.clear();
-    ov_alive_.resize(ovnum_, true);
+    ov_alive_.resize(ovnum_);
     alive_ivnum_ = ivnum_;
     alive_ovnum_ = ovnum_;
     selfloops_num_ = 0;
     selfloops_vertices_.clear();
 
+    /*
     this->inner_vertices_.SetRange(0, ivnum_, alive_ivnum_, &iv_alive_);
     this->outer_vertices_.SetRange(id_parser_.max_local_id() - ovnum_,
                                    id_parser_.max_local_id(), alive_ovnum_,
                                    &ov_alive_, true);
     this->vertices_.SetRange(0, ivnum_, id_parser_.max_local_id() - ovnum_,
                              id_parser_.max_local_id(), &iv_alive_, &ov_alive_);
+			     */
+    this->inner_vertices_.SetRange(0, ivnum_);
+    this->outer_vertices_.SetRange(id_parser_.max_local_id() - ovnum_,
+                                   id_parser_.max_local_id());
+    this->vertices_.SetRange(0, ivnum_, id_parser_.max_local_id() - ovnum_,
+                             id_parser_.max_local_id());
     initOuterVerticesOfFragment();
 
     buildCSR(edges, load_strategy_);
@@ -169,6 +179,7 @@ class DynamicFragmentPoc
         VID_T gid = v.vid;
         if (id_parser_.get_fragment_id(gid) == fid_) {
           ivdata_[id_parser_.get_local_id(gid)] = v.vdata;
+          iv_alive_.set_bit(id_parser_.get_local_id(gid));
         } else {
           auto iter = ovg2i_.find(gid);
           if (iter != ovg2i_.end()) {
@@ -208,7 +219,7 @@ class DynamicFragmentPoc
           sparse_set.insert(v);
 
           // remove vertex
-          iv_alive_[v.GetValue()] = false;
+          iv_alive_.reset_bit(v.GetValue());
           --alive_ivnum_;
         }
       }
@@ -233,7 +244,7 @@ class DynamicFragmentPoc
           dense_bitset[v] = true;
 
           // remove vertex
-          iv_alive_[v.GetValue()] = false;
+          iv_alive_.reset_bit(v.GetValue());
           --alive_ivnum_;
 
           if (selfloops_vertices_.find(v.GetValue()) !=
@@ -331,6 +342,12 @@ class DynamicFragmentPoc
       }
       vid_t new_ivnum = vm_ptr_->GetInnerVertexSize(fid_);
       vid_t new_ovnum = ovgid_.size();
+      this->inner_vertices_.SetRange(0, new_ivnum);
+      this->outer_vertices_.SetRange(id_parser_.max_local_id() - new_ovnum,
+                                     id_parser_.max_local_id());
+      this->vertices_.SetRange(0, new_ivnum,
+                               id_parser_.max_local_id() - new_ovnum,
+                               id_parser_.max_local_id());
       // add edges first, then update ivnum_ and ovnum;
       // reserve edges
       oe_.add_vertices(new_ivnum - ivnum, new_ovnum - ovnum);
@@ -365,19 +382,19 @@ class DynamicFragmentPoc
     }
     ivdata_.resize(this->ivnum_);
     ovdata_.resize(this->ovnum_);
-    iv_alive_.resize(this->ivnum_, true);
-    ov_alive_.resize(this->ovnum_, true);
+    iv_alive_.resize(this->ivnum_);
+    ov_alive_.resize(this->ovnum_);
     for (auto& v : mutation.vertices_to_add) {
       vid_t lid;
       if (IsInnerVertexGid(v.vid)) {
         this->InnerVertexGid2Lid(v.vid, lid);
         ivdata_[lid] = std::move(v.vdata);
-        iv_alive_[lid] = true;
+        iv_alive_.set_bit(lid);
         ++alive_ivnum_;
       } else {
         if (this->OuterVertexGid2Lid(v.vid, lid)) {
           ovdata_[outerVertexLidToIndex(lid)] = std::move(v.vdata);
-          ov_alive_[outerVertexLidToIndex(lid)] = true;
+          ov_alive_.set_bit(outerVertexLidToIndex(lid));
           ++alive_ovnum_;
         }
       }
@@ -395,6 +412,7 @@ class DynamicFragmentPoc
     }
 
     // The ranges must be set after alive_ivnum_ and alive_ovnum_
+    /*
     this->inner_vertices_.SetRange(0, this->ivnum_, alive_ivnum_, &iv_alive_);
     this->outer_vertices_.SetRange(id_parser_.max_local_id() - this->ovnum_,
                                    id_parser_.max_local_id(), alive_ovnum_,
@@ -402,6 +420,7 @@ class DynamicFragmentPoc
     this->vertices_.SetRange(0, this->ivnum_,
                              id_parser_.max_local_id() - this->ovnum_,
                              id_parser_.max_local_id(), &iv_alive_, &ov_alive_);
+			     */
   }
 
   template <typename IOADAPTOR_T>
@@ -599,6 +618,7 @@ class DynamicFragmentPoc
       Mutate(mutation);
       LOG(INFO) << "Poc modify vertices time: " << GetCurrentTime() - start;
     }
+
   }
 
 
@@ -686,9 +706,19 @@ class DynamicFragmentPoc
       }
       LOG(INFO) << "Poc processing edges time: " << GetCurrentTime() - start;
       start = GetCurrentTime();
+      // Init(fid_, directed_, mutation.vertices_to_add, mutation.edges_to_add);
       Mutate(mutation);
       LOG(INFO) << "Poc insert edges time: " << GetCurrentTime() - start;
     }
+    // grape::VertexRange<vid_t> ivs(0, ivnum_);
+    double t = grape::GetCurrentTime();
+    for (auto& v : InnerVertices()) {
+      for (auto& e : this->GetOutgoingAdjList(v)) {
+        auto n = e.get_neighbor();
+      }
+    }
+    LOG(INFO) << "Iterate time: " << grape::GetCurrentTime() - t;
+
   }
 
   // Methods that belongs to NetworkX
@@ -742,17 +772,17 @@ class DynamicFragmentPoc
     return vm_ptr_->GetGid(oid, gid);
   }
 
-  inline virtual size_t selfloops_num() const {
+  inline size_t selfloops_num() const {
     return selfloops_vertices_.size();
   }
 
-  inline virtual bool HasNode(const oid_t& node) const {
+  inline bool HasNode(const oid_t& node) const {
     vid_t gid;
     return this->vm_ptr_->GetGid(fid_, node, gid) &&
            iv_alive_[id_parser_.get_local_id(gid)];
   }
 
-  inline virtual bool HasEdge(const oid_t& u, const oid_t& v) const {
+  inline bool HasEdge(const oid_t& u, const oid_t& v) const {
     vid_t uid, vid;
     if (vm_ptr_->GetGid(u, uid) && vm_ptr_->GetGid(v, vid)) {
       vid_t ulid, vlid;
@@ -772,7 +802,7 @@ class DynamicFragmentPoc
     return false;
   }
 
-  inline virtual bool GetEdgeData(const oid_t& u_oid, const oid_t& v_oid,
+  inline bool GetEdgeData(const oid_t& u_oid, const oid_t& v_oid,
                                   edata_t& data) const {
     vid_t uid, vid;
     if (vm_ptr_->GetGid(u_oid, uid) && vm_ptr_->GetGid(v_oid, vid)) {
@@ -795,7 +825,7 @@ class DynamicFragmentPoc
     return false;
   }
 
-  inline virtual bool IsAliveInnerVertex(const vertex_t& v) const {
+  inline bool IsAliveInnerVertex(const vertex_t& v) const {
     return iv_alive_[v.GetValue()];
   }
 
@@ -883,7 +913,7 @@ class DynamicFragmentPoc
     return prop_keys;
   }
 
-  virtual gs::bl::result<gs::dynamic::Type> GetOidType(
+  gs::bl::result<gs::dynamic::Type> GetOidType(
       const grape::CommSpec& comm_spec) const {
     auto oid_type = gs::dynamic::Type::kNullType;
     if (this->alive_ivnum_ > 0) {
@@ -1232,8 +1262,8 @@ class DynamicFragmentPoc
 
     iv_alive_.resize(ivnum_);
     ov_alive_.resize(ovnum_);
-    memcpy(&iv_alive_[0], &(source->iv_alive_[0]), ivnum_ * sizeof(bool));
-    memcpy(&ov_alive_[0], &(source->ov_alive_[0]), ovnum_ * sizeof(bool));
+    // memcpy(&iv_alive_[0], &(source->iv_alive_[0]), ivnum_ * sizeof(bool));
+    // memcpy(&ov_alive_[0], &(source->ov_alive_[0]), ovnum_ * sizeof(bool));
   }
 
   using base_t::ivnum_;
@@ -1249,8 +1279,10 @@ class DynamicFragmentPoc
   std::vector<VID_T> ovgid_;
   Array<VDATA_T, Allocator<VDATA_T>> ivdata_;
   Array<VDATA_T, Allocator<VDATA_T>> ovdata_;
-  Array<bool> iv_alive_;
-  Array<bool> ov_alive_;
+  // Array<bool> iv_alive_;
+  // Array<bool> ov_alive_;
+  Bitset iv_alive_;
+  Bitset ov_alive_;
 
   VertexArray<inner_vertices_t, nbr_t*> iespliter_, oespliter_;
 
