@@ -16,11 +16,271 @@
 # limitations under the License.
 #
 
+import orjson as json
 from collections.abc import MutableMapping
+from collections import UserDict
+from collections import UserList
 
 from graphscope.proto import types_pb2
+from graphscope.framework import dag_utils
 
-__all__ = ["NodeDict", "AdjDict"]
+__all__ = ["NodeDict", "AdjDict", "NodeCache", "AdjListCache"]
+
+class Cache:
+    def __init__(self, graph):
+        self._graph = graph
+        self._node_id_cache = {}
+        self._node_attr_cache = []
+        self._neighbor_cache = []
+        self._neighbor_attr_cache = []
+        self.gid = 0
+        self.pre_gid = 0
+        self.node_attr_align = False
+        self.neighbor_align = False
+        self.neighbor_attr_align = False
+
+    @property
+    def node_id_cache(self):
+        return self._node_id_cache
+
+    @property
+    def node_attr_cache(self):
+        return self._node_attr_cache
+
+    @property
+    def neighbor_cache(self):
+        return self._neighbor_cache
+
+    @property
+    def neighbor_attr_cache(self):
+        return self._neighbor_attr_cache
+
+    def align_node_attr_cache(self):
+        if self.node_attr_align is False:
+            print("call align node attr")
+            self._node_attr_cache = self._get_node_attr_cache(self.pre_gid)
+            self.node_attr_align = True
+
+    def align_neighbor_cache(self):
+        if self.neighbor_align is False:
+            print("call align neighbor cache")
+            self._neighbor_cache = self._get_neighbor_cache(self.pre_gid)
+            self.neighbor_align = True
+
+    def align_neighbor_attr_cache(self):
+        if self.neighbor_attr_align is False:
+            print("call align neighbor attr cache")
+            self._neighbor_attr_cache = self._get_neighbor_attr_cache(self.pre_gid)
+            self.neighbor_attr_align = True
+
+    def __len__(self):
+        return self._graph.number_of_nodes()
+
+    def __iter__(self):
+        print("call Cache __iter__")
+        self.gid = 0
+        self.n = 0
+        self._len = self._graph.number_of_nodes()
+        while True:
+            if self.n == self._len:
+                break
+            cache = self._get_node_id_cache(self.gid)
+            self.pre_gid = self.gid
+            self.gid = cache["next"]
+            if cache["status"]:
+                self.node_attr_align = self.neighbor_align = self.neighbor_attr_align = False
+                self._node_id_cache = {k: v for v, k in enumerate(cache["nodes_id"])}
+                self.n += len(self._node_id_cache)
+                for n in self._node_id_cache:
+                    yield n
+
+    def _get_node_id_cache(self, gid):
+        print("call _get_id_cache", gid)
+        op = dag_utils.report_graph(self._graph, types_pb2.NODE_ID_CACHE_BY_GID, gid=gid)
+        archive = op.eval()
+        return json.loads(archive.get_string())
+
+    def _get_node_attr_cache(self, gid):
+        print("call _get_data_cache", gid)
+        op = dag_utils.report_graph(self._graph, types_pb2.NODE_ATTR_CACHE_BY_GID, gid=gid)
+        archive = op.eval()
+        return json.loads(archive.get_string())
+
+    def _get_node_attr(self, key):
+        print("call _get_data", key)
+        op = dag_utils.report_graph(self._graph, types_pb2.NODE_DATA, node=json.dumps(key))
+        archive = op.eval()
+        return json.loads(archive.get_string())
+
+    def _get_neighbor_cache(self, gid):
+        print("call __get_nbr_cache", gid)
+        op = dag_utils.report_graph(self._graph, types_pb2.NEIGHBOR_BY_GID, gid=gid)
+        archive = op.eval()
+        return json.loads(archive.get_string())
+
+    def _get_neighbor_attr_cache(self, gid):
+        print("call __get_nbr_attr_cache", gid)
+        op = dag_utils.report_graph(self._graph, types_pb2.NEIGHBOR_ATTR_BY_GID, gid=gid)
+        archive = op.eval()
+        return json.loads(archive.get_string())
+
+
+class NodeDictPoc:
+    def __init__(self, cache):
+        self._graph = cache._graph
+        self._cache = cache
+
+    def __repr__(self):
+        return f"NodeDictPoc"
+
+    def __len__(self):
+        return len(self._cache)
+
+    def __getitem__(self, key):
+        if key in self._cache.node_id_cache:
+            self._cache.align_node_attr_cache()
+            map_index = self._cache.node_id_cache[key]
+            return NodeAttrDictPoc(self._graph, key, self._cache.node_attr_cache[map_index])
+        elif key in self._graph:
+            return self._cache.__missing__(key)
+        else:
+            raise KeyError(key)
+
+    def __setitem__(self, key, item):
+        if key in self._cache.node_id_cache and self._cache.node_attr_align:
+            index = self._cache.node_id_cache[key]
+            self._cache.node_attr_cache[index] = item
+            self._graph.set_node_data(key, item)
+        elif key in self._graph:
+            self._graph.set_node_data(key, item)
+        else:
+            self._graph.add_node(key, **item)
+
+    def __delitem__(self, key):
+        if key in self._cache.node_id_cache:
+            self._cache.node_id_cache.pop(key)
+        self._graph.remove_node(key)
+
+    def __iter__(self):
+        return iter(self._cache)
+
+    def __contains__(self, key):
+        return key in self._cache
+
+
+class NodeAttrDictPoc(UserDict):
+    def __init__(self, graph, key, data):
+        super().__init__()
+        self.graph = graph
+        self.key = key
+        self.data = data
+
+    def __setitem__(self, key, item):
+        super().__setitem__(key, item)
+        self.graph.set_node_data(self.key, self.data)
+
+    def __delitem__(self, key):
+        super().__delitem__(key)
+        self.graph.set_node_data(self.key, self.data)
+
+    def clear(self):
+        super().clear()
+        self.graph.set_node_data(self.key, self.data)
+
+    def update(self, dict=None, **kwargs):
+        super().update(dict, **kwargs)
+        self.graph.set_node_data(self.key, self.data)
+
+
+class AdjListDictPoc:
+    def __init__(self, cache):
+        self._graph = cache._graph
+        self._cache = cache
+
+    def __repr__(self):
+        return f"AdjListDictPoc"
+
+    def __len__(self):
+        return len(self._cache)
+
+    def __getitem__(self, key):
+        if key in self._cache.node_id_cache:
+            self._cache.align_neighbor_cache()
+            map_index = self._cache.node_id_cache[key]
+            return NeighborDict(self._graph, self._cache, key, self._cache.neighbor_cache[map_index])
+        elif key in self._graph:
+            return self.__missing__(key)
+        else:
+            raise KeyError(key)
+
+    def __setitem__(self, key, item):
+        raise NotImplementedError("hard to implement this method in rpc way")
+
+    def __delitem__(self, key):
+        # NB: not really identical to del g._adj[key]
+        if key in self._cache.node_id_cache:
+            self._cache.node_id_cache.pop(key)
+        self._graph.remove_node(key)
+
+    def __iter__(self):
+        print("call AdjListDictPoc _iter_")
+        return iter(self._cache)
+
+    def __contains__(self, key):
+        return key in self._cache
+
+
+class NeighborDict(UserDict):
+    def __init__(self, graph, cache, key, data):
+        super().__init__()
+        self._graph = graph
+        self._cache = cache
+        self._key = key
+        self.nbr_list = data
+        self.nbr2i = {k: v for v, k in enumerate(data)}
+        self.attred = False
+
+    def __len__(self):
+        return len(self.nbr_list)
+
+    def __getitem__(self, key):
+        if key in self.nbr2i:
+            if self.attred is False:
+                self._cache.align_neighbor_attr_cache()
+                map_index = self._cache.node_id_cache[self._key]
+                self.nbr_attr = self._cache.neighbor_attr_cache[map_index]
+                self.attred = True
+            return NeighborAttrDict(self._graph, self._key, key, self.nbr_attr[self.nbr2i[key]])
+        raise KeyError(key)
+
+    def __iter__(self):
+        return iter(self.nbr_list)
+
+
+class NeighborAttrDict(UserDict):
+    def __init__(self, graph, u, v, data):
+        super().__init__()
+        self.graph = graph
+        self.u = u
+        self.v = v
+        self.data = data
+
+    def __setitem__(self, key, item):
+        super().__setitem__(key, item)
+        print("set edge data", self.u, self.v, self.data)
+        self.graph.set_edge_data(self.u, self.v, self.data)
+
+    def __delitem__(self, key):
+        super().__delitem__(key)
+        self.graph.set_edge_data(self.u, self.v, self.data)
+
+    def clear(self):
+        super().clear()
+        self.graph.set_edge_data(self.u, self.v, self.data)
+
+    def update(self, dict=None, **kwargs):
+        super().update(dict, **kwargs)
+        self.graph.set_edge_data(self.u, self.v, self.data)
 
 
 class NodeDict(MutableMapping):

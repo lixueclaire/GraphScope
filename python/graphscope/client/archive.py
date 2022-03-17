@@ -75,3 +75,9 @@ class OutArchive(object):
         size_of_int = struct.calcsize("i")
         i = struct.unpack("i", self.get_block(size_of_int))[0]
         return i
+
+    def get_bool(self):
+        """Peek a bool."""
+        size_of_bool = struct.calcsize("?")
+        b = struct.unpack("?", self.get_block(size_of_bool))[0]
+        return b

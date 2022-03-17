@@ -41,6 +41,7 @@ except ImportError:
 
 import graphscope
 from graphscope.analytical.udf.utils import InMemoryZip
+from graphscope.client.archive import OutArchive
 from graphscope.client.rpc import GRPCClient
 from graphscope.client.utils import CaptureKeyboardInterrupt
 from graphscope.client.utils import GSLogger
@@ -194,6 +195,8 @@ class _FetchHandler(object):
                             rets.append(self._rebuild_context(seq, op, op_result))
                         elif op.type == types_pb2.FETCH_GREMLIN_RESULT:
                             rets.append(pickle.loads(op_result.result))
+                        elif op.type == types_pb2.REPORT_GRAPH:
+                            rets.append(OutArchive(op_result.result))
                         else:
                             # for nx Graph
                             rets.append(op_result.result.decode("utf-8"))

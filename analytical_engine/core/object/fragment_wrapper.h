@@ -268,13 +268,16 @@ class FragmentWrapper<vineyard::ArrowFragment<OID_T, VID_T>>
     return std::dynamic_pointer_cast<IFragmentWrapper>(wrapper);
   }
 
-  bl::result<std::string> ReportGraph(const grape::CommSpec& comm_spec,
+  bl::result<std::unique_ptr<grape::InArchive>> ReportGraph(const grape::CommSpec& comm_spec,
                                       const rpc::GSParams& params) override {
 #ifdef NETWORKX
     BOOST_LEAF_AUTO(default_label_id,
                     params.Get<int64_t>(rpc::DEFAULT_LABEL_ID));
     ArrowFragmentReporter<fragment_t> reporter(comm_spec, default_label_id);
-    return reporter.Report(fragment_, params);
+    // TODO: fullfill
+    reporter.Report(fragment_, params);
+    auto in_archive = std::make_unique<grape::InArchive>();
+    return in_archive;
 #else
     RETURN_GS_ERROR(vineyard::ErrorCode::kInvalidOperationError,
                     "GraphScope is built with NETWORKX=OFF, please recompile "
@@ -717,7 +720,7 @@ class FragmentWrapper<ArrowProjectedFragment<OID_T, VID_T, VDATA_T, EDATA_T>>
                     "Cannot copy the ArrowProjectedFragment");
   }
 
-  bl::result<std::string> ReportGraph(const grape::CommSpec& comm_spec,
+  bl::result<std::unique_ptr<grape::InArchive>> ReportGraph(const grape::CommSpec& comm_spec,
                                       const rpc::GSParams& params) override {
     RETURN_GS_ERROR(vineyard::ErrorCode::kInvalidOperationError,
                     "Not implemented.");
@@ -777,7 +780,7 @@ class FragmentWrapper<DynamicFragment> : public IFragmentWrapper {
     return graph_def_;
   }
 
-  bl::result<std::string> ReportGraph(const grape::CommSpec& comm_spec,
+  bl::result<std::unique_ptr<grape::InArchive>> ReportGraph(const grape::CommSpec& comm_spec,
                                       const rpc::GSParams& params) override {
     DynamicFragmentReporter reporter(comm_spec);
     return reporter.Report(fragment_, params);
@@ -939,7 +942,7 @@ class FragmentWrapper<DynamicProjectedFragment<VDATA_T, EDATA_T>>
     return graph_def_;
   }
 
-  bl::result<std::string> ReportGraph(const grape::CommSpec& comm_spec,
+  bl::result<std::unique_ptr<grape::InArchive>> ReportGraph(const grape::CommSpec& comm_spec,
                                       const rpc::GSParams& params) override {
     RETURN_GS_ERROR(vineyard::ErrorCode::kInvalidOperationError,
                     "Not implemented.");
@@ -1004,7 +1007,7 @@ class FragmentWrapper<ArrowFlattenedFragment<OID_T, VID_T, VDATA_T, EDATA_T>>
     return graph_def_;
   }
 
-  bl::result<std::string> ReportGraph(const grape::CommSpec& comm_spec,
+  bl::result<std::unique_ptr<grape::InArchive>> ReportGraph(const grape::CommSpec& comm_spec,
                                       const rpc::GSParams& params) override {
     RETURN_GS_ERROR(vineyard::ErrorCode::kInvalidOperationError,
                     "Not implemented.");

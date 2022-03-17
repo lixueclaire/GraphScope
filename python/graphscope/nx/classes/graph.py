@@ -38,6 +38,10 @@ from graphscope.framework.graph_schema import GraphSchema
 from graphscope.nx import NetworkXError
 from graphscope.nx.classes.dicts import AdjDict
 from graphscope.nx.classes.dicts import NodeDict
+from graphscope.nx.classes.dicts import Cache
+from graphscope.nx.classes.dicts import NodeDictPoc
+from graphscope.nx.classes.dicts import NodeDictPoc
+from graphscope.nx.classes.dicts import AdjListDictPoc
 from graphscope.nx.classes.graphviews import generic_graph_view
 from graphscope.nx.classes.reportviews import EdgeView
 from graphscope.nx.classes.reportviews import NodeView
@@ -258,8 +262,9 @@ class Graph(_GraphBase):
     For details on these and other miscellaneous methods, see below.
     """
 
-    node_dict_factory = NodeDict
-    adjlist_dict_factory = AdjDict
+    graph_cache_factory = Cache
+    node_dict_factory = NodeDictPoc
+    adjlist_dict_factory = AdjListDictPoc
     graph_attr_dict_factory = dict
     _graph_type = graph_def_pb2.DYNAMIC_PROPERTY
 
@@ -317,9 +322,10 @@ class Graph(_GraphBase):
         self.graph_attr_dict_factory = self.graph_attr_dict_factory
         self.node_dict_factory = self.node_dict_factory
         self.adjlist_dict_factory = self.adjlist_dict_factory
+        self.cache = Cache(self)
         self.graph = self.graph_attr_dict_factory()
-        self._node = self.node_dict_factory(self)
-        self._adj = self.adjlist_dict_factory(self)
+        self._node = self.node_dict_factory(self.cache)
+        self._adj = self.adjlist_dict_factory(self.cache)
 
         self._key = None
         self._op = None
@@ -792,7 +798,8 @@ class Graph(_GraphBase):
         if self.graph_type == graph_def_pb2.ARROW_PROPERTY:
             n = self._convert_to_label_id_tuple(n)
         op = dag_utils.report_graph(self, types_pb2.NODE_DATA, node=json.dumps(n))
-        return op.eval()
+        archive = op.eval()
+        return archive.get_string()
 
     @clear_cache
     def number_of_nodes(self):
@@ -814,7 +821,8 @@ class Graph(_GraphBase):
         3
         """
         op = dag_utils.report_graph(self, types_pb2.NODE_NUM)
-        return int(op.eval())
+        archive = op.eval()
+        return archive.get_size()
 
     def order(self):
         """Returns the number of nodes in the graph.
@@ -864,7 +872,8 @@ class Graph(_GraphBase):
             if self.graph_type == graph_def_pb2.ARROW_PROPERTY:
                 n = self._convert_to_label_id_tuple(n)
             op = dag_utils.report_graph(self, types_pb2.HAS_NODE, node=json.dumps(n))
-            return bool(int(op.eval()))
+            archive = op.eval()
+            return archive.get_bool()
         except (TypeError, NetworkXError, KeyError):
             return False
 
@@ -1230,7 +1239,8 @@ class Graph(_GraphBase):
         if weight:
             return sum(d for v, d in self.degree(weight=weight)) / 2
         op = dag_utils.report_graph(self, types_pb2.EDGE_NUM)
-        return int(op.eval()) // 2
+        archive = op.eval()
+        return archive.get_size() // 2
 
     @clear_cache
     @patch_docstring(RefGraph.number_of_edges)
@@ -1245,7 +1255,8 @@ class Graph(_GraphBase):
     @clear_cache
     def number_of_selfloops(self):
         op = dag_utils.report_graph(self, types_pb2.SELFLOOPS_NUM)
-        return int(op.eval())
+        archive = op.eval()
+        return archive.get_size()
 
     @clear_cache
     def has_edge(self, u, v):
@@ -1443,8 +1454,8 @@ class Graph(_GraphBase):
                 edge=json.dumps((u, v)),
                 key="",
             )
-            ret = op.eval()
-            return json.loads(ret)
+            archive = op.eval()
+            return json.loads(archive.get_string())
         else:
             return default
 
@@ -1924,8 +1935,39 @@ class Graph(_GraphBase):
                 lid=location[1],
                 label_id=location[2],
             )
-        ret = op.eval()
-        return ret
+        archive = op.eval()
+        return archive.get_string()
+
+    def _batch_get_node_by_gid(self, gid):
+        """Get node by gid in batch.
+
+        In grape engine, it will start fetch from location, and return a batch of nodes.
+
+        Parameters
+        ----------
+        location: tuple
+            location of start node, a tuple with fragment id and local id.
+
+        Returns
+        -------
+        nodes_dict_with_status: dict
+            the return contain three parts:
+                ret['status']: bool, success or failed.
+                ret['next']: tuple, next location.
+                ret['batch']: list, the batch nodes id list.
+
+        Example:
+        >>> g = nx.Graph()
+        >>> g.add_nodes_from([1, 2, 3])
+        >>> g._batch_get_node((0, 0))  # start from frag-0, lid-0, mpirun np=1
+        {'status': True, 'next': [1, 0], 'batch': [1, 2, 3]}
+        """
+        op = dag_utils.report_graph(
+            self, types_pb2.NODE_CACHE_BY_GID, gid=gid
+        )
+
+        archive = op.eval()
+        return archive.get_string()
 
     @parse_ret_as_dict
     def _get_nbrs(self, n, report_type=types_pb2.SUCCS_BY_NODE):
@@ -1961,7 +2003,8 @@ class Graph(_GraphBase):
         if self.graph_type == graph_def_pb2.ARROW_PROPERTY:
             n = self._convert_to_label_id_tuple(n)
         op = dag_utils.report_graph(self, report_type, node=json.dumps(n))
-        return op.eval()
+        archive = op.eval()
+        return archive.get_string()
 
     def _batch_get_nbrs(self, location, report_type=types_pb2.SUCCS_BY_LOC):
         """Get neighbors of nodes by location in batch.
@@ -2019,7 +2062,8 @@ class Graph(_GraphBase):
         Raise NetworkxError if node not in graph.
         """
         op = dag_utils.report_graph(self, report_type, node=json.dumps(n), key=weight)
-        degree = float(op.eval())
+        archive = op.eval()
+        degree = op.eval()
         return degree if weight is not None else int(degree)
 
     def _batch_get_degree(

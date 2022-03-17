@@ -230,6 +230,7 @@ enum ParamKey {
   SUB_LABEL = 315;
   GENERATE_EID = 316;
   DEFAULT_LABEL_ID = 317;
+  GID = 318;
 
   STORAGE_OPTIONS = 321;
   READ_OPTIONS = 322;
@@ -242,7 +243,7 @@ enum ParamKey {
 
   GRAPH_LIBRARY_PATH = 400;
 
-  VFORMAT = 500; // vertex input format 
+  VFORMAT = 500; // vertex input format
   EFORMAT = 501; // edge input format
   JAVA_CLASS_PATH = 502; // java class path
   JVM_OPTS = 503; // opts str to start a jvm
@@ -278,6 +279,10 @@ enum ReportType {
   OUT_DEG_BY_LOC = 17;
   NODES_BY_LOC = 18;
   SELFLOOPS_NUM = 19;
+  NODE_ID_CACHE_BY_GID = 20;
+  NODE_ATTR_CACHE_BY_GID = 21;
+  NEIGHBOR_BY_GID = 22;
+  NEIGHBOR_ATTR_BY_GID = 23;
 }
 
 message PlaceHolder {}
