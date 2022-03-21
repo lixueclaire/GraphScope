@@ -16,6 +16,9 @@
 # limitations under the License.
 #
 
+import concurrent.futures
+from collections import deque
+
 import orjson as json
 from collections.abc import MutableMapping
 from collections import UserDict
@@ -38,6 +41,8 @@ class Cache:
         self.node_attr_align = False
         self.neighbor_align = False
         self.neighbor_attr_align = False
+        self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+        self.future = deque()
 
     @property
     def node_id_cache(self):
@@ -84,23 +89,34 @@ class Cache:
         while True:
             if self.n == self._len:
                 break
-            cache = self._get_node_id_cache(self.gid)
+            if len(self.future) == 0:
+                cache = self._get_node_id_cache(self.gid)
+            else:
+                f = self.future.pop()
+                cache = f.result()
             self.pre_gid = self.gid
             self.gid = cache["next"]
             if cache["status"]:
+                print("get ", cache['nodes_id'])
                 self.node_attr_align = self.neighbor_align = self.neighbor_attr_align = False
+                self.n += len(cache["nodes_id"])
+                if n != self._len:
+                    self._fetch_next_cache(self.gid)
                 self._node_id_cache = {k: v for v, k in enumerate(cache["nodes_id"])}
-                self.n += len(self._node_id_cache)
                 for n in self._node_id_cache:
                     yield n
+            else:
+                self._fetch_next_cache(self.gid)
+
+
+    def _fetch_next_cache(self, gid):
+        f = self.executor.submit(self._get_node_id_cache, gid)
+        self.future.append(f)
 
     def _get_node_id_cache(self, gid):
-        print("call _get_id_cache", gid)
         op = dag_utils.report_graph(self._graph, types_pb2.NODE_ID_CACHE_BY_GID, gid=gid)
-        print("op eval")
-        archive = op.eval_async()
-        # archive = op.eval()
-        print("op eval done", archive.get_string())
+        # archive = op.eval_async()
+        archive = op.eval()
         return json.loads(archive.get_string())
 
     def _get_node_attr_cache(self, gid):

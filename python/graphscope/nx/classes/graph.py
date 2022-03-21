@@ -263,10 +263,10 @@ class Graph(_GraphBase):
     """
 
     graph_cache_factory = Cache
-    # node_dict_factory = NodeDictPoc
-    # adjlist_dict_factory = AdjListDictPoc
-    node_dict_factory = NodeDict
-    adjlist_dict_factory = AdjDict
+    node_dict_factory = NodeDictPoc
+    adjlist_dict_factory = AdjListDictPoc
+    # node_dict_factory = NodeDict
+    # adjlist_dict_factory = AdjDict
     graph_attr_dict_factory = dict
     _graph_type = graph_def_pb2.DYNAMIC_PROPERTY
 
@@ -326,10 +326,10 @@ class Graph(_GraphBase):
         self.adjlist_dict_factory = self.adjlist_dict_factory
         self.cache = Cache(self)
         self.graph = self.graph_attr_dict_factory()
-        # self._node = self.node_dict_factory(self.cache)
-        # self._adj = self.adjlist_dict_factory(self.cache)
-        self._node = self.node_dict_factory(self)
-        self._adj = self.adjlist_dict_factory(self)
+        self._node = self.node_dict_factory(self.cache)
+        self._adj = self.adjlist_dict_factory(self.cache)
+        # self._node = self.node_dict_factory(self)
+        # self._adj = self.adjlist_dict_factory(self)
 
         self._key = None
         self._op = None
