@@ -152,6 +152,16 @@ class Operation(object):
         res = sess.run(self)
         return res
 
+    def eval_async(self, leaf=True):
+        from graphscope.client.session import get_session_by_id
+
+        self._leaf = leaf
+        sess = get_session_by_id(self._session_id)
+        if not self._leaf:
+            sess.dag.add_op(self)
+        res = sess.run_async(self)
+        return res
+
     def add_parent(self, op):
         self._parents.append(op)
         self._op_def.parents.extend([op.key])

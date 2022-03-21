@@ -49,8 +49,11 @@ class GRPCClient(object):
         ]
         self._launcher = launcher
         self._grpc_utils = GRPCUtils()
+        self._endpoint = endpoint
         self._channel = grpc.insecure_channel(endpoint, options=options)
+        self._async_channel = grpc.aio.insecure_channel(endpoint, options=options)
         self._stub = coordinator_service_pb2_grpc.CoordinatorServiceStub(self._channel)
+        self._async_stub = coordinator_service_pb2_grpc.CoordinatorServiceStub(self._async_channel)
         self._session_id = None
         self._logs_fetching_thread = None
         self._reconnect = reconnect
@@ -100,6 +103,28 @@ class GRPCClient(object):
             self._session_id, dag_def
         )
         return self._run_step_impl(runstep_requests)
+
+    async def async_run(self, dag_def):
+        runstep_requests = self._grpc_utils.generate_runstep_requests(
+            self._session_id, dag_def
+        )
+        async with grpc.aio.insecure_channel(self._endpoint) as channel:
+            stub = coordinator_service_pb2_grpc.CoordinatorServiceStub(channel)
+            async for responses in stub.RunStep(runstep_requests):
+                print(type(responses))
+                response = self._grpc_utils.parse_runstep_response(
+                    responses
+                )
+                if response.code != error_codes_pb2.OK:
+                    logger.error(
+                        "Runstep failed with code: %s, message: %s",
+                        error_codes_pb2.Code.Name(response.code),
+                        response.error_msg,
+                    )
+                    if response.full_exception:
+                        raise pickle.loads(response.full_exception)
+                print(response)
+                return response
 
     def fetch_logs(self):
         if self._logs_fetching_thread is None:
@@ -182,7 +207,22 @@ class GRPCClient(object):
     @handle_grpc_error
     def _run_step_impl(self, runstep_requests):
         response = self._grpc_utils.parse_runstep_responses(
-            self._stub.RunStep(runstep_requests)
+             self._stub.RunStep(runstep_requests)
+        )
+        if response.code != error_codes_pb2.OK:
+            logger.error(
+                "Runstep failed with code: %s, message: %s",
+                error_codes_pb2.Code.Name(response.code),
+                response.error_msg,
+            )
+            if response.full_exception:
+                raise pickle.loads(response.full_exception)
+        return response
+
+    @catch_grpc_error
+    async def _async_run_step_impl(self, runstep_requests):
+        response = self._grpc_utils.parse_runstep_responses(
+            self._async_stub.RunStep(runstep_requests)
         )
         if response.code != error_codes_pb2.OK:
             logger.error(

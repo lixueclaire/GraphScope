@@ -97,7 +97,10 @@ class Cache:
     def _get_node_id_cache(self, gid):
         print("call _get_id_cache", gid)
         op = dag_utils.report_graph(self._graph, types_pb2.NODE_ID_CACHE_BY_GID, gid=gid)
-        archive = op.eval()
+        print("op eval")
+        archive = op.eval_async()
+        # archive = op.eval()
+        print("op eval done", archive.get_string())
         return json.loads(archive.get_string())
 
     def _get_node_attr_cache(self, gid):

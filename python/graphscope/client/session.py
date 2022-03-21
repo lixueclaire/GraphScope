@@ -19,6 +19,7 @@
 """ Manage sessions to the GraphScope coordinator.
 """
 
+import asyncio
 import atexit
 import base64
 import contextlib
@@ -958,6 +959,29 @@ class Session(object):
         fetch_handler = _FetchHandler(self.dag, fetches)
         try:
             response = self._grpc_client.run(fetch_handler.targets)
+        except FatalError:
+            self.close()
+            raise
+        if not self.eager():
+            # Unload operations that cannot be touched anymore
+            dag_to_unload = fetch_handler.get_dag_for_unload()
+            try:
+                self._grpc_client.run(dag_to_unload)
+            except FatalError:
+                self.close()
+                raise
+        return fetch_handler.wrap_results(response)
+
+    def run_async(self, fetches, debug=False):
+        if self._closed:
+            raise RuntimeError("Attempted to use a closed Session.")
+        if not self._grpc_client:
+            raise RuntimeError("Session disconnected.")
+        fetch_handler = _FetchHandler(self.dag, fetches)
+        try:
+            print("session async run")
+            response = asyncio.run(self._grpc_client.async_run(fetch_handler.targets))
+            print("session async run done", response)
         except FatalError:
             self.close()
             raise
