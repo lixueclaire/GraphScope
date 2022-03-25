@@ -167,7 +167,6 @@ class ArrowToDynamicConverter {
     const auto& schema = src_frag->schema();
     dst_fragment_t::mutation_t mutation;
 
-    double t = grape::GetCurrentTime(), t_to_dynamic = 0, t_add_vertex = 0, t_other = 0;
     for (label_id_t v_label = 0; v_label < src_frag->vertex_label_num();
          v_label++) {
       auto label_name = schema.GetVertexLabelName(v_label);
@@ -175,10 +174,16 @@ class ArrowToDynamicConverter {
       dynamic::Value u_oid, v_oid, data;
       vid_t u_gid, v_gid;
 
+      double t = grape::GetCurrentTime(), t_vertex = 0, t_edge = 0, t_get_oid=0, t_to_dynamic=0, t_emplace_v = 0, t_neighbor_to_dnamic=0, t_get_gid=0, t_emplace_e=0;
       // traverse vertices and extract data from ArrowFragment
       for (const auto& u : src_frag->InnerVertices(v_label)) {
+        double tt = grape::GetCurrentTime(), ttt = grape::GetCurrentTime();
         if (v_label == default_label_id_) {
-          u_oid = dynamic::Value(src_frag->GetId(u));
+          auto oid = src_frag->GetId(u);
+          t_get_oid += grape::GetCurrentTime() - ttt;
+          ttt = grape::GetCurrentTime();
+          u_oid = dynamic::Value(oid);
+          t_to_dynamic += grape::GetCurrentTime() - ttt;
         } else {
           u_oid = dynamic::Value(rapidjson::kArrayType);
           u_oid.PushBack(label_name).PushBack(src_frag->GetId(u));
@@ -194,17 +199,23 @@ class ArrowToDynamicConverter {
           PropertyConverter<src_fragment_t>::NodeValue(src_frag, u, type,
                                                        prop_key, col_id, data);
         }
+        ttt = grape::GetCurrentTime();
         mutation.vertices_to_add.emplace_back(u_gid, data);
+        t_emplace_v += grape::GetCurrentTime() - ttt;
+        t_vertex += grape::GetCurrentTime() - tt;
 
+        tt = grape::GetCurrentTime();
         // traverse edges and extract data
         for (label_id_t e_label = 0; e_label < src_frag->edge_label_num();
              e_label++) {
+          double tttt = grape::GetCurrentTime();
           auto oe = src_frag->GetOutgoingAdjList(u, e_label);
           auto e_data = src_frag->edge_data_table(e_label);
           for (auto& e : oe) {
             auto v = e.get_neighbor();
             auto e_id = e.edge_id();
             auto v_label_id = src_frag->vertex_label(v);
+            tttt = grape::GetCurrentTime();
             if (v_label_id == default_label_id_) {
               v_oid = dynamic::Value(src_frag->GetId(v));
             } else {
@@ -212,10 +223,17 @@ class ArrowToDynamicConverter {
               v_oid.PushBack(schema.GetVertexLabelName(v_label_id))
                   .PushBack(src_frag->GetId(v));
             }
+            t_neighbor_to_dnamic += grape::GetCurrentTime() - tttt;
+            tttt = grape::GetCurrentTime();
             CHECK(dst_vm->GetGid(v_oid, v_gid));
+            t_get_gid += grape::GetCurrentTime() - tttt;
+            tttt = grape::GetCurrentTime();
             data = dynamic::Value(rapidjson::kObjectType);
             PropertyConverter<src_fragment_t>::EdgeValue(e_data, e_id, data);
+            t_edge_data += grape::GetCurrentTime() - tttt;
+            tttt = grape::GetCurrentTime();
             mutation.edges_to_add.emplace_back(u_gid, v_gid, data);
+            t_emplace_e += grape::GetCurrentTime() - tttt;
           }
 
           if (src_frag->directed()) {
@@ -241,12 +259,18 @@ class ArrowToDynamicConverter {
             }
           }
         }
+        t_edge += tt;
       }
+      LOG(INFO) << "convert vertex: get_oid" << t_get_oid << " to_dynamic=" << t_to_dynamic << " t_emplace_v=" << t_emplace_v;
+      LOG(INFO) << "convert edge: neighbor_to_dynamic" << t_neighbor_to_dnamic << " get_gid=" << t_get_gid << " t_emplace_e=" << t_emplace_e;
+      LOG(INFO) << "Get elements=" << grape::GetCurrentTime() - t << " Get vertex=" << t_vertex << " GetEdges=" << t_edges;
     }
 
     auto dynamic_frag = std::make_shared<dst_fragment_t>(dst_vm);
     dynamic_frag->Init(src_frag->fid(), src_frag->directed());
+    double t = grape::GetCurrentTime();
     dynamic_frag->Mutate(mutation);
+    LOG(INFO) << " Mutate Dynamic Fragment " << grape::GetCurrentTime() - t;
     return dynamic_frag;
   }
 
