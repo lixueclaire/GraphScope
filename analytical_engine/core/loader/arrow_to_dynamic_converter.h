@@ -99,8 +99,12 @@ class ArrowToDynamicConverter {
   bl::result<std::shared_ptr<dst_fragment_t>> Convert(
       const std::shared_ptr<src_fragment_t>& arrow_frag) {
     auto arrow_vm = arrow_frag->GetVertexMap();
+    double t = grape::GetCurrentTime();
     BOOST_LEAF_AUTO(dynamic_vm, convertVertexMap(arrow_frag));
+    LOG(INFO) << " convert vertex map elapse time: " << grape::GetCurrentTime() - t;
+    t = grape::GetCurrentTime();
     BOOST_LEAF_AUTO(dynamic_frag, convertFragment(arrow_frag, dynamic_vm));
+    LOG(INFO) << " convert fragment elapse time: " << grape::GetCurrentTime() - t;
     return dynamic_frag;
   }
 
@@ -120,25 +124,38 @@ class ArrowToDynamicConverter {
     id_parser.Init(fnum, src_vm_ptr->label_num());
     dynamic::Value to_oid;
 
+    double t = grape::GetCurrentTime(), t_to_dynamic = 0, t_add_vertex = 0, t_other = 0;
     for (label_id_t v_label = 0; v_label < src_vm_ptr->label_num(); v_label++) {
       std::string label_name = schema.GetVertexLabelName(v_label);
       for (fid_t fid = 0; fid < fnum; fid++) {
         for (vid_t offset = 0;
              offset < src_vm_ptr->GetInnerVertexSize(fid, v_label); offset++) {
+          double tt = grape::GetCurrentTime()
           auto gid = id_parser.GenerateId(fid, v_label, offset);
           typename vineyard::InternalType<oid_t>::type oid;
 
           CHECK(src_vm_ptr->GetOid(gid, oid));
+          t_other += grape::GetCurrentTime() - tt;
           if (v_label == default_label_id_) {
+            tt = grape::GetCurrentTime();
             DynamicWrapper<oid_t>::to_dynamic(oid, to_oid);
+            t_to_dynamic += grape::GetCurrentTime() - tt;
+            tt = grape::GetCurrentTime();
             dst_vm_ptr->AddVertex(std::move(to_oid), gid);
+            t_add_vertex += grape::GetCurrentTime() - tt;
           } else {
+            tt = grape::GetCurrentTime();
             DynamicWrapper<oid_t>::to_dynamic_array(label_name, oid, to_oid);
+            t_to_dynamic += grape::GetCurrentTime() - tt;
+            tt = grape::GetCurrentTime();
             dst_vm_ptr->AddVertex(std::move(to_oid), gid);
+            t_add_vertex += grape::GetCurrentTime() - tt;
           }
         }
       }
     }
+
+    LOG(INFO) << "convert vertex_map time: " << grape::GetCurrentTime() - t << " t_to_dynamic=" << t_to_dynamic << " t_add_vertex=" << t_add_vertex << " t_other=" << t_other;
 
     return dst_vm_ptr;
   }
@@ -150,6 +167,7 @@ class ArrowToDynamicConverter {
     const auto& schema = src_frag->schema();
     dst_fragment_t::mutation_t mutation;
 
+    double t = grape::GetCurrentTime(), t_to_dynamic = 0, t_add_vertex = 0, t_other = 0;
     for (label_id_t v_label = 0; v_label < src_frag->vertex_label_num();
          v_label++) {
       auto label_name = schema.GetVertexLabelName(v_label);
