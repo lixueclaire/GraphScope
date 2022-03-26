@@ -122,7 +122,7 @@ class ArrowToDynamicConverter {
     typename vertex_map_t::partitioner_t partitioner(comm_spec_.fnum());
     dst_vm_ptr->SetPartitioner(partitioner);
     id_parser.Init(fnum, src_vm_ptr->label_num());
-    dynamic::Value to_oid;
+    // dynamic::Value to_oid;
 
     double t = grape::GetCurrentTime(), t_to_dynamic = 0, t_add_vertex = 0, t_other = 0;
     for (label_id_t v_label = 0; v_label < src_vm_ptr->label_num(); v_label++) {
@@ -137,6 +137,7 @@ class ArrowToDynamicConverter {
           CHECK(src_vm_ptr->GetOid(gid, oid));
           t_other += grape::GetCurrentTime() - tt;
           if (v_label == default_label_id_) {
+            dynamic::Value to_oid;
             tt = grape::GetCurrentTime();
             DynamicWrapper<oid_t>::to_dynamic(oid, to_oid);
             t_to_dynamic += grape::GetCurrentTime() - tt;
@@ -144,6 +145,7 @@ class ArrowToDynamicConverter {
             dst_vm_ptr->AddVertex(std::move(to_oid), gid);
             t_add_vertex += grape::GetCurrentTime() - tt;
           } else {
+            dynamic::Value to_oid;
             tt = grape::GetCurrentTime();
             DynamicWrapper<oid_t>::to_dynamic_array(label_name, oid, to_oid);
             t_to_dynamic += grape::GetCurrentTime() - tt;
