@@ -258,14 +258,16 @@ class ArrowToDynamicConverter {
                 auto e_id = e.edge_id();
                 auto v_label_id = src_frag->vertex_label(v);
                 if (v_label_id == default_label_id_) {
-                  v_oid = dynamic::Value(src_frag->GetId(v));
+                  dynamic::Value v_oid(src_frag->GetId(v));
+                  CHECK(dst_vm->GetGid(v_oid, v_gid));
                 } else {
-                  v_oid = dynamic::Value(rapidjson::kArrayType);
+                  dynamic::Value v_oid(rapidjson::kArrayType);
                   v_oid.PushBack(schema.GetVertexLabelName(v_label_id))
                       .PushBack(src_frag->GetId(v));
+                  CHECK(dst_vm->GetGid(v_oid, v_gid));
                 }
-                CHECK(dst_vm->GetGid(v_oid, v_gid));
-                data = dynamic::Value(rapidjson::kObjectType);
+                // CHECK(dst_vm->GetGid(v_oid, v_gid));
+                dynamic::Value data(rapidjson::kObjectType);
                 PropertyConverter<src_fragment_t>::EdgeValue(e_data, e_id,
                                                              data);
                 mutation.edges_to_add.emplace_back(v_gid, u_gid, data);
