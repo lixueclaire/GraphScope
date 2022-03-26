@@ -248,7 +248,7 @@ class ArrowToDynamicConverter {
             PropertyConverter<src_fragment_t>::EdgeValue(e_data, e_id, data);
             t_edge_data += grape::GetCurrentTime() - tttt;
             tttt = grape::GetCurrentTime();
-            mutation.edges_to_add.emplace_back(u_gid, v_gid, data);
+            mutation.edges_to_add.emplace_back(u_gid, v_gid, std::move(data));
             t_emplace_e += grape::GetCurrentTime() - tttt;
           }
 
@@ -272,7 +272,7 @@ class ArrowToDynamicConverter {
                 dynamic::Value data(rapidjson::kObjectType);
                 PropertyConverter<src_fragment_t>::EdgeValue(e_data, e_id,
                                                              data);
-                mutation.edges_to_add.emplace_back(v_gid, u_gid, data);
+                mutation.edges_to_add.emplace_back(v_gid, u_gid, std::move(data));
               }
             }
           }
