@@ -130,7 +130,7 @@ class ArrowToDynamicConverter {
       for (fid_t fid = 0; fid < fnum; fid++) {
         for (vid_t offset = 0;
              offset < src_vm_ptr->GetInnerVertexSize(fid, v_label); offset++) {
-          double tt = grape::GetCurrentTime()
+          double tt = grape::GetCurrentTime();
           auto gid = id_parser.GenerateId(fid, v_label, offset);
           typename vineyard::InternalType<oid_t>::type oid;
 
@@ -174,7 +174,7 @@ class ArrowToDynamicConverter {
       dynamic::Value u_oid, v_oid, data;
       vid_t u_gid, v_gid;
 
-      double t = grape::GetCurrentTime(), t_vertex = 0, t_edge = 0, t_get_oid=0, t_to_dynamic=0, t_emplace_v = 0, t_neighbor_to_dnamic=0, t_get_gid=0, t_emplace_e=0;
+      double t = grape::GetCurrentTime(), t_vertex = 0, t_edge = 0, t_get_oid=0, t_to_dynamic=0, t_emplace_v = 0, t_neighbor_to_dnamic=0, t_get_gid=0, t_emplace_e=0, t_edge_data;
       // traverse vertices and extract data from ArrowFragment
       for (const auto& u : src_frag->InnerVertices(v_label)) {
         double tt = grape::GetCurrentTime(), ttt = grape::GetCurrentTime();
@@ -262,8 +262,8 @@ class ArrowToDynamicConverter {
         t_edge += tt;
       }
       LOG(INFO) << "convert vertex: get_oid" << t_get_oid << " to_dynamic=" << t_to_dynamic << " t_emplace_v=" << t_emplace_v;
-      LOG(INFO) << "convert edge: neighbor_to_dynamic" << t_neighbor_to_dnamic << " get_gid=" << t_get_gid << " t_emplace_e=" << t_emplace_e;
-      LOG(INFO) << "Get elements=" << grape::GetCurrentTime() - t << " Get vertex=" << t_vertex << " GetEdges=" << t_edges;
+      LOG(INFO) << "convert edge: neighbor_to_dynamic" << t_neighbor_to_dnamic << " get_gid=" << t_get_gid << " get_edge_data=" << t_edge_data << " t_emplace_e=" << t_emplace_e;
+      LOG(INFO) << "Get elements=" << grape::GetCurrentTime() - t << " Get vertex=" << t_vertex << " GetEdges=" << t_edge;
     }
 
     auto dynamic_frag = std::make_shared<dst_fragment_t>(dst_vm);
