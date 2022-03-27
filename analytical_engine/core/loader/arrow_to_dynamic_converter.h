@@ -99,8 +99,12 @@ class ArrowToDynamicConverter {
   bl::result<std::shared_ptr<dst_fragment_t>> Convert(
       const std::shared_ptr<src_fragment_t>& arrow_frag) {
     auto arrow_vm = arrow_frag->GetVertexMap();
+    double t = grape::GetCurrentTime();
     BOOST_LEAF_AUTO(dynamic_vm, convertVertexMap(arrow_frag));
+    LOG(INFO) << "convert vertex map: " << grape::GetCurrentTime() - t;
+    t = grape::GetCurrentTime();
     BOOST_LEAF_AUTO(dynamic_frag, convertFragment(arrow_frag, dynamic_vm));
+    LOG(INFO) << "convert fragment: " << grape::GetCurrentTime() - t;
     return dynamic_frag;
   }
 
@@ -120,6 +124,7 @@ class ArrowToDynamicConverter {
     id_parser.Init(fnum, src_vm_ptr->label_num());
     dynamic::Value to_oid;
 
+    double t = grape::GetCurrentTime();
     for (label_id_t v_label = 0; v_label < src_vm_ptr->label_num(); v_label++) {
       std::string label_name = schema.GetVertexLabelName(v_label);
       for (fid_t fid = 0; fid < fnum; fid++) {
@@ -139,6 +144,7 @@ class ArrowToDynamicConverter {
         }
       }
     }
+    LOG(INFO) << " Add vertex to vertex map: " << grape::GetCurrentTime() - t;
 
     return dst_vm_ptr;
   }
@@ -149,7 +155,10 @@ class ArrowToDynamicConverter {
     auto fid = src_frag->fid();
     const auto& schema = src_frag->schema();
     dst_fragment_t::mutation_t mutation;
+    mutation.vertices_to_add.reserve(src_frag->GetInnerVerticesNum(0));
+    mutation.edges_to_add.reserve(src_frag->GetEdgeNum());
 
+    double t = 0, conv_vertex = 0, conv_edge =0;
     for (label_id_t v_label = 0; v_label < src_frag->vertex_label_num();
          v_label++) {
       auto label_name = schema.GetVertexLabelName(v_label);
@@ -159,6 +168,7 @@ class ArrowToDynamicConverter {
 
       // traverse vertices and extract data from ArrowFragment
       for (const auto& u : src_frag->InnerVertices(v_label)) {
+        t = grape::GetCurrentTime();
         if (v_label == default_label_id_) {
           u_oid = dynamic::Value(src_frag->GetId(u));
         } else {
@@ -177,10 +187,12 @@ class ArrowToDynamicConverter {
                                                        prop_key, col_id, data);
         }
         mutation.vertices_to_add.emplace_back(u_gid, data);
+        conv_vertex += grape::GetCurrentTime() - t;
 
         // traverse edges and extract data
         for (label_id_t e_label = 0; e_label < src_frag->edge_label_num();
              e_label++) {
+          t = grape::GetCurrentTime();
           auto oe = src_frag->GetOutgoingAdjList(u, e_label);
           auto e_data = src_frag->edge_data_table(e_label);
           for (auto& e : oe) {
@@ -199,6 +211,7 @@ class ArrowToDynamicConverter {
             PropertyConverter<src_fragment_t>::EdgeValue(e_data, e_id, data);
             mutation.edges_to_add.emplace_back(u_gid, v_gid, data);
           }
+          conv_edge += grape::GetCurrentTime() - t;
 
           if (src_frag->directed()) {
             auto ie = src_frag->GetIncomingAdjList(u, e_label);
@@ -227,8 +240,11 @@ class ArrowToDynamicConverter {
     }
 
     auto dynamic_frag = std::make_shared<dst_fragment_t>(dst_vm);
+    t = grape::GetCurrentTime();
     dynamic_frag->Init(src_frag->fid(), src_frag->directed());
     dynamic_frag->Mutate(mutation);
+    double mutate_ = grape::GetCurrentTime() - t;
+    LOG(INFO) << "conv vertex=" << conv_vertex << " conv edge=" << conv_edge << " mutate frag=" << mutate_;
     return dynamic_frag;
   }
 
