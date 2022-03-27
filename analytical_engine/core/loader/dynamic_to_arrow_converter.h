@@ -544,12 +544,17 @@ class DynamicToArrowConverter {
       const std::shared_ptr<src_fragment_t>& dynamic_frag) {
     VertexMapConverter<oid_t> converter(comm_spec_, client_);
 
+    double t = grape::GetCurrentTime();
     BOOST_LEAF_AUTO(vm_id, converter.Convert(dynamic_frag));
     auto dst_vm = std::dynamic_pointer_cast<vineyard::ArrowVertexMap<
         typename vineyard::InternalType<oid_t>::type, vid_t>>(
         client_.GetObject(vm_id));
+    LOG(INFO) << "convert vertex map: " << grape::GetCurrentTime() - t;
 
-    return convertFragment(dynamic_frag, dst_vm);
+    t = grape::GetCurrentTime();
+    auto frag = convertFragment(dynamic_frag, dst_vm);
+    LOG(INFO) << "convert fragment: " << grape::GetCurrentTime() - t;
+    return frag;
   }
 
  private:
@@ -558,9 +563,14 @@ class DynamicToArrowConverter {
       const std::shared_ptr<typename dst_fragment_t::vertex_map_t>& dst_vm) {
     auto fid = src_frag->fid();
     auto fnum = src_frag->fnum();
+    double t = grape::GetCurrentTime();
     BOOST_LEAF_AUTO(v_table, buildVTable(src_frag));
+    LOG(INFO) << "buildVTable: " << grape::GetCurrentTime() - t;
+    t = grape::GetCurrentTime();
     BOOST_LEAF_AUTO(e_table, buildETable(src_frag, dst_vm));
+    LOG(INFO) << "buildETable: " << grape::GetCurrentTime() - t;
 
+    t = grape::GetCurrentTime();
     {
       std::shared_ptr<arrow::KeyValueMetadata> meta(
           new arrow::KeyValueMetadata());
@@ -616,16 +626,22 @@ class DynamicToArrowConverter {
                            e_table->schema()->field(i)->type());
       }
     }
+    LOG(INFO) << "construct schema: " << grape::GetCurrentTime() - t;
 
+    t = grape::GetCurrentTime();
     auto frag_builder = std::make_shared<vineyard::BasicArrowFragmentBuilder<
         typename dst_fragment_t::oid_t, typename dst_fragment_t::vid_t>>(
         client_, dst_vm);
     BOOST_LEAF_CHECK(frag_builder->Init(fid, fnum, {v_table}, {e_table},
                                         src_frag->directed()));
     frag_builder->SetPropertyGraphSchema(std::move(schema));
+    LOG(INFO) << "Build Fragment: " << grape::GetCurrentTime() - t;
 
-    return std::dynamic_pointer_cast<dst_fragment_t>(
+    t = grape::GetCurrentTime();
+    auto frag = std::dynamic_pointer_cast<dst_fragment_t>(
         frag_builder->Seal(client_));
+    LOG(INFO) << "Seal Fragment: " << grape::GetCurrentTime() - t;
+    return frag;
   }
 
   bl::result<std::shared_ptr<arrow::Table>> buildVTable(
