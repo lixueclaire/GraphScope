@@ -99,12 +99,8 @@ class ArrowToDynamicConverter {
   bl::result<std::shared_ptr<dst_fragment_t>> Convert(
       const std::shared_ptr<src_fragment_t>& arrow_frag) {
     auto arrow_vm = arrow_frag->GetVertexMap();
-    double t = grape::GetCurrentTime();
     BOOST_LEAF_AUTO(dynamic_vm, convertVertexMap(arrow_frag));
-    LOG(INFO) << " convert vertex map elapse time: " << grape::GetCurrentTime() - t;
-    t = grape::GetCurrentTime();
     BOOST_LEAF_AUTO(dynamic_frag, convertFragment(arrow_frag, dynamic_vm));
-    LOG(INFO) << " convert fragment elapse time: " << grape::GetCurrentTime() - t;
     return dynamic_frag;
   }
 
@@ -122,42 +118,27 @@ class ArrowToDynamicConverter {
     typename vertex_map_t::partitioner_t partitioner(comm_spec_.fnum());
     dst_vm_ptr->SetPartitioner(partitioner);
     id_parser.Init(fnum, src_vm_ptr->label_num());
-    // dynamic::Value to_oid;
+    dynamic::Value to_oid;
 
-    double t = grape::GetCurrentTime(), t_to_dynamic = 0, t_add_vertex = 0, t_other = 0;
     for (label_id_t v_label = 0; v_label < src_vm_ptr->label_num(); v_label++) {
       std::string label_name = schema.GetVertexLabelName(v_label);
       for (fid_t fid = 0; fid < fnum; fid++) {
         for (vid_t offset = 0;
              offset < src_vm_ptr->GetInnerVertexSize(fid, v_label); offset++) {
-          double tt = grape::GetCurrentTime();
           auto gid = id_parser.GenerateId(fid, v_label, offset);
           typename vineyard::InternalType<oid_t>::type oid;
 
           CHECK(src_vm_ptr->GetOid(gid, oid));
-          t_other += grape::GetCurrentTime() - tt;
           if (v_label == default_label_id_) {
-            dynamic::Value to_oid;
-            tt = grape::GetCurrentTime();
             DynamicWrapper<oid_t>::to_dynamic(oid, to_oid);
-            t_to_dynamic += grape::GetCurrentTime() - tt;
-            tt = grape::GetCurrentTime();
             dst_vm_ptr->AddVertex(std::move(to_oid), gid);
-            t_add_vertex += grape::GetCurrentTime() - tt;
           } else {
-            dynamic::Value to_oid;
-            tt = grape::GetCurrentTime();
             DynamicWrapper<oid_t>::to_dynamic_array(label_name, oid, to_oid);
-            t_to_dynamic += grape::GetCurrentTime() - tt;
-            tt = grape::GetCurrentTime();
             dst_vm_ptr->AddVertex(std::move(to_oid), gid);
-            t_add_vertex += grape::GetCurrentTime() - tt;
           }
         }
       }
     }
-
-    LOG(INFO) << "convert vertex_map time: " << grape::GetCurrentTime() - t << " t_to_dynamic=" << t_to_dynamic << " t_add_vertex=" << t_add_vertex << " t_other=" << t_other;
 
     return dst_vm_ptr;
   }
@@ -168,37 +149,26 @@ class ArrowToDynamicConverter {
     auto fid = src_frag->fid();
     const auto& schema = src_frag->schema();
     dst_fragment_t::mutation_t mutation;
-    mutation.vertices_to_add.reserve(src_frag->GetInnerVerticesNum(0));
-    mutation.edges_to_add.reserve(src_frag->GetEdgeNum());
 
     for (label_id_t v_label = 0; v_label < src_frag->vertex_label_num();
          v_label++) {
       auto label_name = schema.GetVertexLabelName(v_label);
       auto v_data = src_frag->vertex_data_table(v_label);
-      // dynamic::Value u_oid, v_oid, data;
+      dynamic::Value u_oid, v_oid, data;
       vid_t u_gid, v_gid;
 
-      double t = grape::GetCurrentTime(), t_vertex = 0, t_edge = 0, t_get_oid=0, t_to_dynamic=0, t_get_vertex_data = 0, t_emplace_v = 0, t_neighbor_to_dnamic=0, t_get_gid=0, t_emplace_e=0, t_edge_data = 0;
       // traverse vertices and extract data from ArrowFragment
       for (const auto& u : src_frag->InnerVertices(v_label)) {
-        double tt = grape::GetCurrentTime(), ttt = grape::GetCurrentTime();
         if (v_label == default_label_id_) {
-          auto oid = src_frag->GetId(u);
-          t_get_oid += grape::GetCurrentTime() - ttt;
-          ttt = grape::GetCurrentTime();
-          dynamic::Value u_oid(oid);
-          t_to_dynamic += grape::GetCurrentTime() - ttt;
-          CHECK(dst_vm->GetGid(fid, u_oid, u_gid));
+          u_oid = dynamic::Value(src_frag->GetId(u));
         } else {
-          dynamic::Value u_oid(rapidjson::kArrayType);
+          u_oid = dynamic::Value(rapidjson::kArrayType);
           u_oid.PushBack(label_name).PushBack(src_frag->GetId(u));
-          CHECK(dst_vm->GetGid(fid, u_oid, u_gid));
         }
 
-        // CHECK(dst_vm->GetGid(fid, u_oid, u_gid));
-        dynamic::Value data(rapidjson::kObjectType);
+        CHECK(dst_vm->GetGid(fid, u_oid, u_gid));
+        data = dynamic::Value(rapidjson::kObjectType);
         // N.B: th last column is id, we ignore it.
-        ttt = grape::GetCurrentTime();
         for (auto col_id = 0; col_id < v_data->num_columns() - 1; col_id++) {
           auto column = v_data->column(col_id);
           auto prop_key = v_data->field(col_id)->name();
@@ -206,50 +176,28 @@ class ArrowToDynamicConverter {
           PropertyConverter<src_fragment_t>::NodeValue(src_frag, u, type,
                                                        prop_key, col_id, data);
         }
-        t_get_vertex_data += grape::GetCurrentTime() - ttt;
-        ttt = grape::GetCurrentTime();
         mutation.vertices_to_add.emplace_back(u_gid, data);
-        t_emplace_v += grape::GetCurrentTime() - ttt;
-        t_vertex += grape::GetCurrentTime() - tt;
 
-        tt = grape::GetCurrentTime();
         // traverse edges and extract data
         for (label_id_t e_label = 0; e_label < src_frag->edge_label_num();
              e_label++) {
-          double tttt = grape::GetCurrentTime();
           auto oe = src_frag->GetOutgoingAdjList(u, e_label);
           auto e_data = src_frag->edge_data_table(e_label);
           for (auto& e : oe) {
             auto v = e.get_neighbor();
             auto e_id = e.edge_id();
             auto v_label_id = src_frag->vertex_label(v);
-            tttt = grape::GetCurrentTime();
             if (v_label_id == default_label_id_) {
-              dynamic::Value v_oid(src_frag->GetId(v));
-              t_neighbor_to_dnamic += grape::GetCurrentTime() - tttt;
-              tttt = grape::GetCurrentTime();
-              CHECK(dst_vm->GetGid(v_oid, v_gid));
-            t_get_gid += grape::GetCurrentTime() - tttt;
+              v_oid = dynamic::Value(src_frag->GetId(v));
             } else {
-              dynamic::Value v_oid(rapidjson::kArrayType);
+              v_oid = dynamic::Value(rapidjson::kArrayType);
               v_oid.PushBack(schema.GetVertexLabelName(v_label_id))
                   .PushBack(src_frag->GetId(v));
-              t_neighbor_to_dnamic += grape::GetCurrentTime() - tttt;
-              tttt = grape::GetCurrentTime();
-              CHECK(dst_vm->GetGid(v_oid, v_gid));
-              t_get_gid += grape::GetCurrentTime() - tttt;
             }
-            // t_neighbor_to_dnamic += grape::GetCurrentTime() - tttt;
-            // tttt = grape::GetCurrentTime();
-            // CHECK(dst_vm->GetGid(v_oid, v_gid));
-            // t_get_gid += grape::GetCurrentTime() - tttt;
-            tttt = grape::GetCurrentTime();
-            dynamic::Value data(rapidjson::kObjectType);
+            CHECK(dst_vm->GetGid(v_oid, v_gid));
+            data = dynamic::Value(rapidjson::kObjectType);
             PropertyConverter<src_fragment_t>::EdgeValue(e_data, e_id, data);
-            t_edge_data += grape::GetCurrentTime() - tttt;
-            tttt = grape::GetCurrentTime();
-            mutation.edges_to_add.emplace_back(u_gid, v_gid, std::move(data));
-            t_emplace_e += grape::GetCurrentTime() - tttt;
+            mutation.edges_to_add.emplace_back(u_gid, v_gid, data);
           }
 
           if (src_frag->directed()) {
@@ -260,35 +208,27 @@ class ArrowToDynamicConverter {
                 auto e_id = e.edge_id();
                 auto v_label_id = src_frag->vertex_label(v);
                 if (v_label_id == default_label_id_) {
-                  dynamic::Value v_oid(src_frag->GetId(v));
-                  CHECK(dst_vm->GetGid(v_oid, v_gid));
+                  v_oid = dynamic::Value(src_frag->GetId(v));
                 } else {
-                  dynamic::Value v_oid(rapidjson::kArrayType);
+                  v_oid = dynamic::Value(rapidjson::kArrayType);
                   v_oid.PushBack(schema.GetVertexLabelName(v_label_id))
                       .PushBack(src_frag->GetId(v));
-                  CHECK(dst_vm->GetGid(v_oid, v_gid));
                 }
-                // CHECK(dst_vm->GetGid(v_oid, v_gid));
-                dynamic::Value data(rapidjson::kObjectType);
+                CHECK(dst_vm->GetGid(v_oid, v_gid));
+                data = dynamic::Value(rapidjson::kObjectType);
                 PropertyConverter<src_fragment_t>::EdgeValue(e_data, e_id,
                                                              data);
-                mutation.edges_to_add.emplace_back(v_gid, u_gid, std::move(data));
+                mutation.edges_to_add.emplace_back(v_gid, u_gid, data);
               }
             }
           }
         }
-        t_edge += grape::GetCurrentTime() - tt;
       }
-      LOG(INFO) << "convert vertex: get_oid=" << t_get_oid << " to_dynamic=" << t_to_dynamic << " t_vertex_data=" << t_get_vertex_data << " t_emplace_v=" << t_emplace_v;
-      LOG(INFO) << "convert edge: neighbor_to_dynamic=" << t_neighbor_to_dnamic << " get_gid=" << t_get_gid << " get_edge_data=" << t_edge_data << " t_emplace_e=" << t_emplace_e;
-      LOG(INFO) << "Get elements=" << grape::GetCurrentTime() - t << " Get vertex=" << t_vertex << " GetEdges=" << t_edge;
     }
 
     auto dynamic_frag = std::make_shared<dst_fragment_t>(dst_vm);
     dynamic_frag->Init(src_frag->fid(), src_frag->directed());
-    double t = grape::GetCurrentTime();
     dynamic_frag->Mutate(mutation);
-    LOG(INFO) << " Mutate Dynamic Fragment " << grape::GetCurrentTime() - t;
     return dynamic_frag;
   }
 
