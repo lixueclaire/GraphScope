@@ -61,6 +61,12 @@ class OutArchive(object):
         block = self.get_block(size)
         return block
 
+    def get_bytes(self):
+        """Peek bytes"""
+        size = self.get_size()
+        bytes = self.get_block(size).tobytes()
+        return bytes
+
     def get_string(self):
         """Peek a string.
         Get string's length first (stored as a size_t), then get number of bytes

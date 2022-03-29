@@ -18,11 +18,11 @@
 
 import concurrent.futures
 from collections import deque
-
-import orjson as json
 from collections.abc import MutableMapping
 from collections import UserDict
-from collections import UserList
+
+import orjson as json
+import cysimdjson
 
 from graphscope.proto import types_pb2
 from graphscope.framework import dag_utils
