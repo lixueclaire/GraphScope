@@ -24,7 +24,7 @@ from collections.abc import MutableMapping
 from collections import UserDict
 
 import orjson as json
-import cysimdjson
+import simdjson
 
 from graphscope.proto import types_pb2
 from graphscope.framework import dag_utils
@@ -33,8 +33,8 @@ __all__ = ["NodeDict", "AdjDict", "NodeCache", "AdjListCache"]
 
 class Cache:
     def __init__(self, graph):
-        self.parser = cysimdjson.JSONParser()
-        self.nbr_parser = cysimdjson.JSONParser()
+        self.parser = simdjson.Parser()
+        self.nbr_parser = simdjson.Parser()
         self._graph = graph
         self._node_id_cache = {}
         self._node_attr_cache = []
@@ -79,7 +79,6 @@ class Cache:
 
     def align_neighbor_cache(self):
         if self.neighbor_align is False:
-            t = timer()
             f = self.nbr_future.pop()
             self._neighbor_cache = f.result()
             if self.n < self._len:
@@ -109,10 +108,13 @@ class Cache:
             archive = f.result()
             self.gid = archive.get_uint64()
             print("self.gid", self.gid)
-            if self.n + 1000000 < self._len:
+            if self.n + 10 < self._len:
                 self._fetch_node_id_cache(self.gid)
             self.node_attr_align = self.neighbor_align = self.neighbor_attr_align = False
             self.pre_gid = self.gid
+            t = timer()
+            del self._node_id_cache
+            print("del cache", timer() - t)
             self._node_id_cache = self.parser.parse(archive.get_bytes())
             self.n += len(self._node_id_cache)
             print(type(self._node_id_cache))
