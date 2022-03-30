@@ -252,9 +252,10 @@ class DynamicFragmentReporter : public grape::Communicator {
     }
 
     if (v.GetValue() < fragment->GetInnerVerticesNum()) {
-      arc << vm_ptr->Lid2Gid(fragment->fid(), v.GetValue()) << nodes_id;
+      arc << vm_ptr->Lid2Gid(fragment->fid(), v.GetValue()) << nodes_id.Size()
+          << nodes_id;
     } else {
-      arc << vm_ptr->Lid2Gid(fragment->fid() + 1, 0) << nodes_id;
+      arc << vm_ptr->Lid2Gid(fragment->fid() + 1, 0) << nodes_id.Size() << nodes_id;
     }
   }
 
@@ -353,7 +354,7 @@ class DynamicFragmentReporter : public grape::Communicator {
   }
 
   grape::CommSpec comm_spec_;
-  static const int batch_num_ = 1000000;
+  static const int batch_num_ = 10000000;
   // static const int batch_num_ = 10;
 };
 
