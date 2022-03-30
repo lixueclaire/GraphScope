@@ -2235,6 +2235,7 @@ class Graph(_GraphBase):
         self._graph_type = graph_def_pb2.ARROW_PROPERTY
 
     def _clear_adding_cache(self):
+        update_nodes_num = len(self._add_node_cache)
         if self._add_node_cache:
             nodes_to_modify = json.dumps(
                 self._add_node_cache, option=json.OPT_SERIALIZE_NUMPY
@@ -2254,6 +2255,9 @@ class Graph(_GraphBase):
             )
             self._op.eval()
             self._add_edge_cache.clear()
+        if update_nodes_num > 1000000:
+            # prewarming the report cache
+            self.cache.prewarming()
 
     def _clear_removing_cache(self):
         if self._remove_node_cache:

@@ -82,6 +82,12 @@ class OutArchive(object):
         i = struct.unpack("i", self.get_block(size_of_int))[0]
         return i
 
+    def get_uint64(self):
+        """Peek a uint64."""
+        size_of_uint64 = struct.calcsize("Q")
+        i = struct.unpack("Q", self.get_block(size_of_uint64))[0]
+        return i
+
     def get_bool(self):
         """Peek a bool."""
         size_of_bool = struct.calcsize("?")

@@ -242,7 +242,6 @@ class DynamicFragmentReporter : public grape::Communicator {
     vertex_t v;
     auto vm_ptr = fragment->GetVertexMap();
     fragment->InnerVertexGid2Vertex(gid, v);
-    dynamic::Value result(rapidjson::kObjectType);
     dynamic::Value nodes_id(rapidjson::kArrayType);
 
     for (int cnt = 0; v.GetValue() < fragment->GetInnerVerticesNum() && cnt < batch_num_; ++v) {
@@ -253,18 +252,10 @@ class DynamicFragmentReporter : public grape::Communicator {
     }
 
     if (v.GetValue() < fragment->GetInnerVerticesNum()) {
-      result.Insert("next", vm_ptr->Lid2Gid(fragment->fid(), v.GetValue()));
+      arc << vm_ptr->Lid2Gid(fragment->fid(), v.GetValue()) << nodes_id;
     } else {
-      result.Insert("next", vm_ptr->Lid2Gid(fragment->fid() + 1, 0));
+      arc << vm_ptr->Lid2Gid(fragment->fid() + 1, 0) << nodes_id;
     }
-
-    if (!nodes_id.Empty()) {
-      result.Insert("status", true);
-      result.Insert("nodes_id", nodes_id);
-    } else {
-      result.Insert("status", false);
-    }
-    arc << result;
   }
 
   void getNodeAttrCacheByGid(std::shared_ptr<fragment_t>& fragment, vid_t gid,

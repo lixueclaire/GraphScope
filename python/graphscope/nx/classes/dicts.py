@@ -105,14 +105,17 @@ class Cache:
                 break
             t = timer()
             f = self.future.pop()
-            self.gid, self._node_id_cache = f.result()
             print("pop result", timer() - t)
-            self.pre_gid = self.gid
+            archive = f.result()
+            self.gid = archive.get_uint64()
+            print("self.gid", self.gid)
+            if self.n + 1000000 < self._len:
+                self._fetch_node_id_cache(self.gid)
             self.node_attr_align = self.neighbor_align = self.neighbor_attr_align = False
+            self.pre_gid = self.gid
+            self._node_id_cache = self.parser.parse(archive.get_bytes())
             self.n += len(self._node_id_cache)
             print(type(self._node_id_cache))
-            if self.n != self._len:
-                self._fetch_node_id_cache(self.gid)
             for n in self._node_id_cache:
                 yield n
 
@@ -135,17 +138,11 @@ class Cache:
         self.future.append(f)
 
     def _get_node_id_cache(self, gid):
+        t = timer()
         op = dag_utils.report_graph(self._graph, types_pb2.NODE_ID_CACHE_BY_GID, gid=gid)
         archive = op.eval()
-        t = timer()
-        cache = self.nbr_parser.parse(archive.get_bytes())
-        print("json parse", timer() - t)
-        gid = cache["next"]
-        t = timer()
-        node_id_cache = {k: v for v, k in enumerate(cache["nodes_id"])} if cache["status"] else {}
-        print("list to hashmap", timer() - t)
-        print("len", len(node_id_cache))
-        return (gid, node_id_cache)
+        print("fetch cache", timer() - t)
+        return archive
 
     def _get_node_attr_cache(self, gid):
         print("call _get_data_cache", gid)
