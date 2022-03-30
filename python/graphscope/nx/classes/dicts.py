@@ -122,7 +122,9 @@ class Cache:
             t = timer()
             array = self.parser.parse(archive.get_bytes())
             print("parse node cache", timer() - t)
+            t = timer()
             self._node_id_cache = {k: v for v, k in enumerate(array)}
+            print("to hash map", timer() - t)
             del array
             for n in self._node_id_cache:
                 yield n
