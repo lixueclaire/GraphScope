@@ -219,7 +219,7 @@ class GRPCClient(object):
                 raise pickle.loads(response.full_exception)
         return response
 
-    @catch_grpc_error
+    @handle_grpc_error
     async def _async_run_step_impl(self, runstep_requests):
         response = self._grpc_utils.parse_runstep_responses(
             self._async_stub.RunStep(runstep_requests)

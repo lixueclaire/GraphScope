@@ -16,6 +16,8 @@
 # limitations under the License.
 #
 
+from timeit import default_timer as timer
+
 import concurrent.futures
 from collections import deque
 from collections.abc import MutableMapping
@@ -31,6 +33,8 @@ __all__ = ["NodeDict", "AdjDict", "NodeCache", "AdjListCache"]
 
 class Cache:
     def __init__(self, graph):
+        self.parser = cysimdjson.JSONParser()
+        self.nbr_parser = cysimdjson.JSONParser()
         self._graph = graph
         self._node_id_cache = {}
         self._node_attr_cache = []
@@ -41,8 +45,16 @@ class Cache:
         self.node_attr_align = False
         self.neighbor_align = False
         self.neighbor_attr_align = False
-        self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+        self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=5)
         self.future = deque()
+        self.nbr_future = deque()
+
+    def prewarming(self):
+        self.gid = 0
+        self.n = 0
+        self._fetch_node_id_cache(0)
+        # self._fetch_node_attr_cache(0)
+        # self._fetch_neighbor_cache(0)
 
     @property
     def node_id_cache(self):
@@ -62,14 +74,16 @@ class Cache:
 
     def align_node_attr_cache(self):
         if self.node_attr_align is False:
-            print("call align node attr")
             self._node_attr_cache = self._get_node_attr_cache(self.pre_gid)
             self.node_attr_align = True
 
     def align_neighbor_cache(self):
         if self.neighbor_align is False:
-            print("call align neighbor cache")
-            self._neighbor_cache = self._get_neighbor_cache(self.pre_gid)
+            t = timer()
+            f = self.nbr_future.pop()
+            self._neighbor_cache = f.result()
+            if self.n < self._len:
+                self._fetch_neighbor_cache(self.pre_gid)
             self.neighbor_align = True
 
     def align_neighbor_attr_cache(self):
@@ -87,43 +101,58 @@ class Cache:
         self.n = 0
         self._len = self._graph.number_of_nodes()
         while True:
-            if self.n == self._len:
+            if self.n >= self._len:
                 break
-            if len(self.future) == 0:
-                cache = self._get_node_id_cache(self.gid)
-            else:
-                f = self.future.pop()
-                cache = f.result()
+            t = timer()
+            f = self.future.pop()
+            self.gid, self._node_id_cache = f.result()
+            print("pop result", timer() - t)
             self.pre_gid = self.gid
-            self.gid = cache["next"]
-            if cache["status"]:
-                print("get ", cache['nodes_id'])
-                self.node_attr_align = self.neighbor_align = self.neighbor_attr_align = False
-                self.n += len(cache["nodes_id"])
-                if n != self._len:
-                    self._fetch_next_cache(self.gid)
-                self._node_id_cache = {k: v for v, k in enumerate(cache["nodes_id"])}
-                for n in self._node_id_cache:
-                    yield n
-            else:
-                self._fetch_next_cache(self.gid)
+            self.node_attr_align = self.neighbor_align = self.neighbor_attr_align = False
+            self.n += len(self._node_id_cache)
+            print(type(self._node_id_cache))
+            if self.n != self._len:
+                self._fetch_node_id_cache(self.gid)
+            for n in self._node_id_cache:
+                yield n
 
-
-    def _fetch_next_cache(self, gid):
+    def _fetch_node_id_cache(self, gid):
+        print("_fetch_node_id_cache", gid)
         f = self.executor.submit(self._get_node_id_cache, gid)
+        self.future.append(f)
+
+    def _fetch_node_attr_cache(self, gid):
+        f = self.executor.submit(self._get_node_attr_cache, gid)
+        self.future.append(f)
+
+    def _fetch_neighbor_cache(self, gid):
+        print("_fetch_neighbor_cache", gid)
+        f = self.executor.submit(self._get_neighbor_cache, gid)
+        self.nbr_future.append(f)
+
+    def _fetch_neighbor_attr_cache(self, gid):
+        f = self.executor.submit(self._get_neighbor_attr_cache, gid)
         self.future.append(f)
 
     def _get_node_id_cache(self, gid):
         op = dag_utils.report_graph(self._graph, types_pb2.NODE_ID_CACHE_BY_GID, gid=gid)
-        # archive = op.eval_async()
         archive = op.eval()
-        return json.loads(archive.get_string())
+        t = timer()
+        cache = self.nbr_parser.parse(archive.get_bytes())
+        print("json parse", timer() - t)
+        gid = cache["next"]
+        t = timer()
+        node_id_cache = {k: v for v, k in enumerate(cache["nodes_id"])} if cache["status"] else {}
+        print("list to hashmap", timer() - t)
+        print("len", len(node_id_cache))
+        return (gid, node_id_cache)
 
     def _get_node_attr_cache(self, gid):
         print("call _get_data_cache", gid)
         op = dag_utils.report_graph(self._graph, types_pb2.NODE_ATTR_CACHE_BY_GID, gid=gid)
         archive = op.eval()
-        return json.loads(archive.get_string())
+        node_attr_cache = self.parser.parse(archive.get_bytes())
+        return node_attr_cache
 
     def _get_node_attr(self, key):
         print("call _get_data", key)
@@ -135,13 +164,17 @@ class Cache:
         print("call __get_nbr_cache", gid)
         op = dag_utils.report_graph(self._graph, types_pb2.NEIGHBOR_BY_GID, gid=gid)
         archive = op.eval()
-        return json.loads(archive.get_string())
+        t = timer()
+        neighbor_cache = self.parser.parse(archive.get_bytes())
+        print("json parse", timer() - t)
+        return neighbor_cache
 
     def _get_neighbor_attr_cache(self, gid):
         print("call __get_nbr_attr_cache", gid)
         op = dag_utils.report_graph(self._graph, types_pb2.NEIGHBOR_ATTR_BY_GID, gid=gid)
         archive = op.eval()
-        return json.loads(archive.get_string())
+        neighbor_attr_cache = self.parser.parse(archive.get_bytes())
+        return neighbor_attr_cache
 
 
 class NodeDictPoc:
@@ -256,8 +289,8 @@ class NeighborDict(UserDict):
         self._cache = cache
         self._key = key
         self.nbr_list = data
-        self.nbr2i = {k: v for v, k in enumerate(data)}
-        self.attred = False
+        # self.nbr2i = {k: v for v, k in enumerate(data)}
+        # self.attred = False
 
     def __len__(self):
         return len(self.nbr_list)

@@ -238,7 +238,7 @@ class DynamicFragmentReporter : public grape::Communicator {
   }
 
   void getNodeIdCacheByGid(std::shared_ptr<fragment_t>& fragment, vid_t gid,
-                         grape::InArchive& arc) {
+                           grape::InArchive& arc) {
     vertex_t v;
     auto vm_ptr = fragment->GetVertexMap();
     fragment->InnerVertexGid2Vertex(gid, v);
@@ -362,7 +362,8 @@ class DynamicFragmentReporter : public grape::Communicator {
   }
 
   grape::CommSpec comm_spec_;
-  static const int batch_num_ = 10;
+  static const int batch_num_ = 1000000;
+  // static const int batch_num_ = 10;
 };
 
 template <typename T>
