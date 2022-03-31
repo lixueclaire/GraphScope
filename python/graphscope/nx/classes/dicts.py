@@ -157,7 +157,7 @@ class Cache:
         node_size = archive.get_uint32()
         t = timer()
         f = io.BytesIO(archive.get_bytes())
-        node_id_cache = simdjson.loads(f)
+        node_id_cache = simdjson.load(f)
         print("Loads node cache", timer() - t)
         return gid, node_size, node_id_cache
 
