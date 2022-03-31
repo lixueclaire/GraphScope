@@ -16,6 +16,7 @@
 # limitations under the License.
 #
 
+import io
 from timeit import default_timer as timer
 
 import concurrent.futures
@@ -80,11 +81,10 @@ class Cache:
     def align_neighbor_cache(self):
         if self.neighbor_align is False:
             f = self.nbr_future.pop()
-            archive = f.result()
-            del self._neighbor_cache
-            t = timer()
-            self._neighbor_cache = self.nbr_parser.parse(archive.get_bytes())
-            print("parse neighbor cache", timer() - t)
+            self._neighbor_cache = f.result()
+            # t = timer()
+            # self._neighbor_cache = self.nbr_parser.loads(archive.get_bytes())
+            # print("Loads neighbor cache", timer() - t)
             if self.n < self._len:
                 self._fetch_neighbor_cache(self.pre_gid)
             self.neighbor_align = True
@@ -173,7 +173,11 @@ class Cache:
         op = dag_utils.report_graph(self._graph, types_pb2.NEIGHBOR_BY_GID, gid=gid)
         archive = op.eval()
         print("fetch neighbor cache", timer() -t)
-        return archive
+        t = timer()
+        file = io.BytesIO(archive.get_bytes())
+        neighbor_cache = simdjson.load(file)
+        print("Loads neighbor cache", timer() - t)
+        return neighbor_cache
 
     def _get_neighbor_attr_cache(self, gid):
         print("call __get_nbr_attr_cache", gid)
