@@ -80,9 +80,10 @@ class Cache:
 
     def align_neighbor_cache(self):
         if self.neighbor_align is False:
+            t = timer()
             f = self.nbr_future.pop()
             self._neighbor_cache = f.result()
-            # t = timer()
+            print("Pop neighbor cache", timer() - t)
             # self._neighbor_cache = self.nbr_parser.loads(archive.get_bytes())
             # print("Loads neighbor cache", timer() - t)
             if self.n < self._len:
