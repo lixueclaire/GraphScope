@@ -19,6 +19,7 @@ limitations under the License.
 #include "grape/grape.h"
 
 #include "apps/property/graph_view_context.h"
+#include "core/worker/parallel_property_worker.h"
 
 namespace gs {
 /**
@@ -28,10 +29,10 @@ namespace gs {
  */
 template <typename FRAG_T>
 class GraphView
-    : public grape::ParallelAppBase<FRAG_T, GraphViewContext<FRAG_T>>,
+    : public ParallelPropertyAppBase<FRAG_T, GraphViewContext<FRAG_T>>,
       public grape::ParallelEngine {
  public:
-  INSTALL_PARALLEL_WORKER(GraphView<FRAG_T>,
+  INSTALL_PARALLEL_PROPERTY_WORKER(GraphView<FRAG_T>,
                           GraphViewContext<FRAG_T>, FRAG_T)
   using vertex_t = typename fragment_t::vertex_t;
   using label_id_t = typename fragment_t::label_id_t;
@@ -42,29 +43,33 @@ class GraphView
 
   void PEval(const fragment_t& frag, context_t& ctx,
              message_manager_t& messages) {
+    LOG(INFO) << "Start PEval";
     messages.InitChannels(thread_num(), 2 * 1023 * 64, 2 * 1024 * 64);
+    auto& channels = messages.Channels();
 
     ctx.current_depth = 0;
+    auto inner_vertices = frag.InnerVertices(0);
     for (int i = 0; i < ctx.path_num; i++) {
       ctx.curr_inner_updated[i].Init(inner_vertices, GetThreadPool());
       ctx.next_inner_updated[i].Init(inner_vertices, GetThreadPool());
     }
-
+    LOG(INFO) << "start iterate sources";
     ForEach(ctx.sources,
-            [&frag, &ctx](int tid, vertex_t v) {
-              for (size_t i = 0; i < paths.size(); i++) {
-                label_id_t e_label = paths[i][ctx.current_depth].first;
-                auto es = paths[i][ctx.current_depth].second ? frag.GetIncomingAdjList(v) : frag.GetOutgoingAdjList(v);
-                if (es.empty()) {
+            [&frag, &ctx, &channels](int tid, vertex_t v) {
+              for (int i = 0; i < ctx.path_num; i++) {
+                LOG(INFO) << "start path " << i << " vertex " << frag.GetId(v);
+                label_id_t e_label = ctx.paths[i][ctx.current_depth].first;
+                auto es = ctx.paths[i][ctx.current_depth].second ? frag.GetIncomingAdjList(v, e_label) : frag.GetOutgoingAdjList(v, e_label);
+                if (es.Empty()) {
                   return;
                 }
-                if (path[i].size() == ctx.current_depth + 1) {
+                if (ctx.paths[i].size() == ctx.current_depth + 1) {
                   for (auto& e : es) {
                     auto u = e.get_neighbor();
                     ctx.coloring.Insert(u);
                     if (frag.IsOuterVertex(u)) {
                       int msg = -1;
-                      messages.SyncStateOnOuterVertex(frag, u, msg);
+                      channels[tid].SyncStateOnOuterVertex(frag, u, msg);
                     }
                   }
                 } else {
@@ -73,16 +78,19 @@ class GraphView
                     if (frag.IsInnerVertex(u)) {
                       ctx.curr_inner_updated[i].Insert(u);
                     } else {
-                      messages.SyncStateOnOuterVertex(frag, u, i);
+                      channels[tid].SyncStateOnOuterVertex(frag, u, i);
                     }
                   }
                 }
               }
             });
+
+    messages.ForceContinue();
   }
 
   void IncEval(const fragment_t& frag, context_t& ctx,
                message_manager_t& messages) {
+    LOG(INFO) << "Start IncEval";
     auto& channels = messages.Channels();
     ctx.current_depth += 1;
 
@@ -90,26 +98,29 @@ class GraphView
     for (int i = 0; i < ctx.path_num; i++) {
       ctx.next_inner_updated[i].ParallelClear(GetThreadPool());
     }
+    LOG(INFO) << "Clear next inner updated.";
 
     // process received messages and update depth
     messages.ParallelProcess<fragment_t, int>(
-        thrd_num, frag, [&ctx](int tid, vertex_t v, int msg) {
+        thrd_num, frag, [&frag, &ctx](int tid, vertex_t v, int msg) {
           if (msg == -1) {
             ctx.coloring.Insert(v);
           } else {
             ctx.curr_inner_updated[msg].Insert(v);
           }
         });
+    LOG(INFO) << "Process messages";
 
-    for (size_t i = 0; i < ctx.path_num; i++) {
-      ForEach(ctx.curr_inner_updated[i], [&frag, &ctx, &channels](
+    for (int i = 0; i < ctx.path_num; i++) {
+      LOG(INFO) << "Process path " << i;
+      ForEach(ctx.curr_inner_updated[i], [&frag, &ctx, &channels, i](
                                        int tid, vertex_t v) {
-        label_id_t e_label = paths[i][ctx.current_depth].first;
-        auto es = paths[i][ctx.current_depth].second ? frag.GetIncomingAdjList(v) : frag.GetOutgoingAdjList(v);
-        if (es.empty()) {
+        label_id_t e_label = ctx.paths[i][ctx.current_depth].first;
+        auto es = ctx.paths[i][ctx.current_depth].second ? frag.GetIncomingAdjList(v, e_label) : frag.GetOutgoingAdjList(v, e_label);
+        if (es.Empty()) {
           return;
         }
-        if (path[i].size() == ctx.current_depth + 1) {
+        if (ctx.paths[i].size() == ctx.current_depth + 1) {
           for (auto& e : es) {
             auto u = e.get_neighbor();
             if (!ctx.coloring.Exist(u)) {
@@ -131,14 +142,16 @@ class GraphView
           }
         }
       });
+      LOG(INFO) << "Done Process path " << i;
     }
 
     for (int i = 0; i < ctx.path_num; i++) {
       if (!ctx.next_inner_updated[i].Empty()) {
-        message.ForceContinue();
+        messages.ForceContinue();
       }
       ctx.next_inner_updated[i].Swap(ctx.curr_inner_updated[i]);
     }
+    LOG(INFO) << "Done Swap updated ";
   }
 };
 }  // namespace gs

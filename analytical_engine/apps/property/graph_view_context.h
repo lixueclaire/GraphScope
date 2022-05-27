@@ -20,12 +20,13 @@
 #include "grape/grape.h"
 
 #include "apps/boundary/utils.h"
-#include "core/app/app_base.h"
+#include "core/app/parallel_property_app_base.h"
+#include "core/context/tensor_context.h"
 
 namespace gs {
 template <typename FRAG_T>
 class GraphViewContext
-    : public grape::TensorContext<FRAG_T, typename FRAG_T::oid_t> {
+    : public TensorContext<FRAG_T, typename FRAG_T::oid_t> {
  public:
   using label_id_t = int;
   using oid_t = typename FRAG_T::oid_t;
@@ -34,14 +35,16 @@ class GraphViewContext
   using depth_type = int64_t;
 
   explicit GraphViewContext(const FRAG_T& fragment)
-      : grape::TensorContext<FRAG_T, oid_t>(fragment) {}
+      : TensorContext<FRAG_T, oid_t>(fragment) {}
 
-  void Init(grape::ParallelMessageManager& messages, const std::string& source_str,
+  void Init(ParallelPropertyMessageManager& messages, const std::string& source_str,
       const std::string& path_str) {
+    auto& frag = this->fragment();
     rapidjson::Document source_array, path_array;
     source_array.Parse(source_str);
-    for (auto& s : source_array) {
-      if (frag.GetVertex(dynamic_to_oid<oid_t>(s)) && frag.IsInnerVertex(v)) {
+    vertex_t v;
+    for (auto& s : source_array.GetArray()) {
+      if (frag.GetVertex(0, dynamic_to_oid<oid_t>(s), v) && frag.IsInnerVertex(v)) {
         sources.push_back(v);
       }
     }
@@ -49,20 +52,21 @@ class GraphViewContext
     path_num = path_array.Size();
     paths.resize(path_array.Size());
     int i = 0;
-    for (auto& path : path_array) {
-      for (auto& relation : path) {
+    for (auto& path : path_array.GetArray()) {
+      for (auto& relation : path.GetArray()) {
         std::string relation_name = relation.GetString();
         if (relation_name[0] == '^') {
-          label_id_t label_id = fragment.schema().GetEdgeLabelId(relation_name.substr(1));
+          label_id_t label_id = frag.schema().GetEdgeLabelId(relation_name.substr(1));
           paths[i].emplace_back(label_id, true);
         } else {
-          label_id_t label_id = fragment.schema().GetEdgeLabelId(relation_name);
+          label_id_t label_id = frag.schema().GetEdgeLabelId(relation_name);
           paths[i].emplace_back(label_id, false);
         }
       }
       ++i;
     }
     curr_inner_updated.resize(path_num);
+    next_inner_updated.resize(path_num);
     coloring.Init(frag.Vertices(0));
   }
 
@@ -78,7 +82,7 @@ class GraphViewContext
   }
 
   std::vector<vertex_t> sources;
-  std::vector<std::vector<std::pair<label_id, bool>>> paths;
+  std::vector<std::vector<std::pair<label_id_t, bool>>> paths;
   grape::DenseVertexSet<typename FRAG_T::vertices_t> coloring;
   std::vector<grape::DenseVertexSet<typename FRAG_T::inner_vertices_t>> curr_inner_updated,
       next_inner_updated;
