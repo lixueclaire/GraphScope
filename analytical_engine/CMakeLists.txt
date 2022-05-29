@@ -300,37 +300,41 @@ if (BUILD_TESTS)
         target_link_libraries(${target} OpenMP::OpenMP_CXX)
     endmacro()
 
-    add_vineyard_app(run_vy_app SRCS test/run_vy_app.cc)
+    # add_vineyard_app(run_vy_app SRCS test/run_vy_app.cc)
 
-    add_vineyard_app(run_load_from_stream SRCS test/run_load_from_stream.cc)
+    add_vineyard_app(run_property_ctx SRCS test/run_property_ctx.cc)
+    target_include_directories(run_property_ctx PRIVATE ${LIBGRAPELITE_INCLUDE_DIRS}/grape/analytical_apps)
+    target_link_libraries(run_property_ctx gs_proto)
 
-    add_vineyard_app(run_vy_ldbc SRCS test/run_vy_ldbc.cc)
-    target_include_directories(run_vy_ldbc PRIVATE ${LIBGRAPELITE_INCLUDE_DIRS}/grape/analytical_apps)
+    # add_vineyard_app(run_load_from_stream SRCS test/run_load_from_stream.cc)
 
-    add_vineyard_app(run_ctx SRCS test/run_ctx.cc)
-    target_include_directories(run_ctx PRIVATE ${LIBGRAPELITE_INCLUDE_DIRS}/grape/analytical_apps)
-    target_link_libraries(run_ctx gs_proto)
+    # add_vineyard_app(run_vy_ldbc SRCS test/run_vy_ldbc.cc)
+    # target_include_directories(run_vy_ldbc PRIVATE ${LIBGRAPELITE_INCLUDE_DIRS}/grape/analytical_apps)
 
-    add_vineyard_app(run_pregel_app SRCS test/run_pregel_app.cc)
+    # add_vineyard_app(run_ctx SRCS test/run_ctx.cc)
+    # target_include_directories(run_ctx PRIVATE ${LIBGRAPELITE_INCLUDE_DIRS}/grape/analytical_apps)
+    # target_link_libraries(run_ctx gs_proto)
 
-    add_vineyard_app(run_string_oid SRCS test/run_string_oid.cc)
-    target_include_directories(run_string_oid PRIVATE ${LIBGRAPELITE_INCLUDE_DIRS}/grape/analytical_apps)
+    # add_vineyard_app(run_pregel_app SRCS test/run_pregel_app.cc)
 
-    add_vineyard_app(run_empty_property SRCS test/run_empty_property.cc)
-    target_include_directories(run_empty_property PRIVATE ${LIBGRAPELITE_INCLUDE_DIRS}/grape/analytical_apps)
+    # add_vineyard_app(run_string_oid SRCS test/run_string_oid.cc)
+    # target_include_directories(run_string_oid PRIVATE ${LIBGRAPELITE_INCLUDE_DIRS}/grape/analytical_apps)
 
-    add_vineyard_app(test_project_string SRCS test/test_project_string.cc)
+    # add_vineyard_app(run_empty_property SRCS test/run_empty_property.cc)
+    # target_include_directories(run_empty_property PRIVATE ${LIBGRAPELITE_INCLUDE_DIRS}/grape/analytical_apps)
 
-    add_vineyard_app(basic_graph_benchmarks SRCS benchmarks/basic_graph_benchmarks.cc)
+    # add_vineyard_app(test_project_string SRCS test/test_project_string.cc)
 
-    add_vineyard_app(property_graph_loader SRCS benchmarks/property_graph_loader.cc)
+    # add_vineyard_app(basic_graph_benchmarks SRCS benchmarks/basic_graph_benchmarks.cc)
 
-    add_vineyard_app(property_graph_benchmarks SRCS benchmarks/property_graph_benchmarks.cc)
+    # add_vineyard_app(property_graph_loader SRCS benchmarks/property_graph_loader.cc)
 
-    add_vineyard_app(projected_graph_benchmarks SRCS benchmarks/projected_graph_benchmarks.cc)
+    # add_vineyard_app(property_graph_benchmarks SRCS benchmarks/property_graph_benchmarks.cc)
+
+    # add_vineyard_app(projected_graph_benchmarks SRCS benchmarks/projected_graph_benchmarks.cc)
 
     if (NETWORKX)
-        add_vineyard_app(test_convert SRCS test/test_convert.cc)
+        # add_vineyard_app(test_convert SRCS test/test_convert.cc)
     endif ()
 endif ()
 

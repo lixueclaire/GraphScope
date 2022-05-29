@@ -62,7 +62,7 @@ export VINEYARD_HOME=/usr/local/bin
 export OMPI_MCA_btl_vader_single_copy_mechanism=none
 export OMPI_MCA_orte_allowed_exit_without_sync=1
 
-np=4
+np=1
 socket_file=/tmp/vineyard.sock
 
 ########################################################
@@ -72,16 +72,16 @@ socket_file=/tmp/vineyard.sock
 ########################################################
 function get_test_data() {
   if [[ -z ${test_dir} ]]; then
-    test_dir="/tmp/gstest"
+    test_dir="/Users/weibin/Dev/gstest"
   fi
   echo ${test_dir}
-  if [[ -d ${test_dir} ]]; then
-    cd ${test_dir}
-    git pull
+  # if [[ -d ${test_dir} ]]; then
+    # cd ${test_dir}
+    # git pull
     cd -
-  else
-    git clone -b master --single-branch --depth=1 https://github.com/7br/gstest.git ${test_dir}
-  fi
+  # else
+    # git clone -b master --single-branch --depth=1 https://github.com/7br/gstest.git ${test_dir}
+  # fi
 }
 
 ########################################################
@@ -314,9 +314,9 @@ function run_lpa() {
 }
 
 
-# The results of bfs and sssp_path is are non-determinstic. 
-# The result of bfs is random because diamond-shaped subgraph, 
-# e.g. there are four edges: 1->2, 1->3, 2->4, 3->4. 
+# The results of bfs and sssp_path is are non-determinstic.
+# The result of bfs is random because diamond-shaped subgraph,
+# e.g. there are four edges: 1->2, 1->3, 2->4, 3->4.
 # For vertex 4, result of bfs may come from vertex 2 or vertex 3.
 #
 # The result of sssp_path is random when there are more than one paths for the
@@ -325,29 +325,29 @@ function run_lpa() {
 # sssp_average_length is a time-consuming app, so we skip it for graph p2p.
 
 declare -a apps=(
-  "sssp" 
-  "sssp_has_path" 
+  "sssp"
+  "sssp_has_path"
   # "sssp_path"
-  "cdlp_auto" 
-  "sssp_auto" 
-  "wcc_auto" 
-  "lcc_auto" 
-  "bfs_auto" 
+  "cdlp_auto"
+  "sssp_auto"
+  "wcc_auto"
+  "lcc_auto"
+  "bfs_auto"
   # "pagerank_auto"
-  "kcore" 
-  "hits" 
-  # "bfs" 
-  "avg_clustering" 
-  "transitivity" 
+  "kcore"
+  "hits"
+  # "bfs"
+  "avg_clustering"
+  "transitivity"
   "triangles"
   # "sssp_average_length"
 )
 
 # these algorithms need to check with directed flag
 declare -a apps_with_directed=(
-  # "katz" 
-  # "eigenvector" 
-  "degree_centrality" 
+  # "katz"
+  # "eigenvector"
+  "degree_centrality"
   "clustering"
 )
 
@@ -361,30 +361,9 @@ pushd "${ENGINE_HOME}"/build
 
 get_test_data
 
-for app in "${apps[@]}"; do
-  run ${np} ./run_app --vfile "${test_dir}"/p2p-31.v --efile "${test_dir}"/p2p-31.e --application "${app}" --out_prefix ./test_output --sssp_source=6 --sssp_target=10 --bfs_source=6
-  exact_verify "${test_dir}"/p2p-31-"${app}"
-done
-
-for app in "${apps_with_directed[@]}"; do
-  run ${np} ./run_app --vfile "${test_dir}"/p2p-31.v --efile "${test_dir}"/p2p-31.e --application "${app}" --out_prefix ./test_output --directed
-  exact_verify "${test_dir}"/p2p-31-"${app}"
-done
-
 start_vineyard
 
-run_vy ${np} ./run_vy_app "${socket_file}" 2 "${test_dir}"/new_property/v2_e2/twitter_e 2 "${test_dir}"/new_property/v2_e2/twitter_v 0 
-run_vy_2 ${np} ./run_vy_app "${socket_file}" 4 "${test_dir}"/projected_property/twitter_property_e "${test_dir}"/projected_property/twitter_property_v 1
-run_lpa ${np} ./run_vy_app "${socket_file}" 1 "${test_dir}"/property/lpa_dataset/lpa_3000_e 2 "${test_dir}"/property/lpa_dataset/lpa_3000_v 0 1 lpa 
-run_sampling_path 2 ./run_vy_app "${socket_file}" "${test_dir}"/property/sampling_path 0 1 sampling_path 0-0-1-4-2 
-
-run_vy ${np} ./run_pregel_app "${socket_file}" 2 "${test_dir}"/new_property/v2_e2/twitter_e 2 "${test_dir}"/new_property/v2_e2/twitter_v
-rm -rf ./test_output/*
-cp ./outputs_pregel_sssp/* ./test_output
-exact_verify "${test_dir}"/twitter-sssp-4
-
-run ${np} ./run_pregel_app tc "${test_dir}"/p2p-31.e "${test_dir}"/p2p-31.v ./test_output 
-exact_verify "${test_dir}/p2p-31"-triangles
+run_vy ${np} ./run_property_ctx "${socket_file}" 1 "${test_dir}"/p2p-31.v 1 "${test_dir}"/p2p-31.e 1
 
 if [[ "${RUN_JAVA_TESTS}" == "ON" ]];
 then

@@ -24,7 +24,8 @@
 #include "vineyard/client/client.h"
 #include "vineyard/graph/fragment/arrow_fragment.h"
 
-#include "apps/property/property_sssp.h"
+// #include "apps/property/property_sssp.h"
+#include "apps/property/graph_view.h"
 #include "core/loader/arrow_fragment_loader.h"
 #include "core/utils/transform_utils.h"
 
@@ -34,6 +35,7 @@ using GraphType =
     vineyard::ArrowFragment<vineyard::property_graph_types::OID_TYPE,
                             vineyard::property_graph_types::VID_TYPE>;
 
+/*
 void RunPropertySSSP(std::shared_ptr<GraphType> fragment,
                      const grape::CommSpec& comm_spec,
                      const std::string& out_prefix) {
@@ -246,13 +248,37 @@ void RunPropertySSSP(std::shared_ptr<GraphType> fragment,
     }
   }
 }
+*/
+
+void RunGraphView(std::shared_ptr<GraphType> fragment,
+                     const grape::CommSpec& comm_spec,
+                     const std::string& out_prefix) {
+  using AppType = gs::GraphView<GraphType>;
+  auto app = std::make_shared<AppType>();
+  auto worker = AppType::CreateWorker(app, fragment);
+  auto spec = grape::DefaultParallelEngineSpec();
+
+  worker->Init(comm_spec, spec);
+  MPI_Barrier(comm_spec.comm());
+  worker->Query("[1, 2]", "[[\"^e0\"], [\"e0\", \"^e0\"]]");
+  std::ofstream ostream;
+  std::string output_path =
+      grape::GetResultFilename(out_prefix, fragment->fid());
+  LOG(INFO) << "output_path: " << output_path;
+  ostream.open(output_path);
+  worker->Output(ostream);
+  ostream.close();
+
+  worker->Finalize();
+  LOG(INFO) << "Worker-" << comm_spec.worker_id() << " finished";
+}
 
 void Run(vineyard::Client& client, const grape::CommSpec& comm_spec,
          vineyard::ObjectID id) {
   std::shared_ptr<GraphType> fragment =
       std::dynamic_pointer_cast<GraphType>(client.GetObject(id));
 
-  RunPropertySSSP(fragment, comm_spec, "./output_property_ctx_sssp/");
+  RunGraphView(fragment, comm_spec, "/Users/weibin/Dev/GraphScope/analytical_engine/build/output_graph_view");
 }
 
 int main(int argc, char** argv) {
