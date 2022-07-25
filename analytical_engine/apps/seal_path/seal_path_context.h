@@ -77,6 +77,19 @@ class SealPathContext : public TensorContext<FRAG_T, typename FRAG_T::oid_t> {
   }
 
   void Output(std::ostream& os) override {
+    auto& frag = this->fragment();
+
+    for (auto& path : path_result) {
+      std::string buf;
+
+      for (auto gid : path) {
+        buf += std::to_string(frag.Gid2Oid(gid)) + " ";
+      }
+      if (!buf.empty()) {
+        buf[buf.size() - 1] = '\n';
+        os << buf;
+      }
+    }
 
 #ifdef PROFILING
     VLOG(2) << "preprocess_time: " << preprocess_time << "s.";
@@ -88,7 +101,6 @@ class SealPathContext : public TensorContext<FRAG_T, typename FRAG_T::oid_t> {
   // std::vector<std::pair<vid_t, vid_t>> pairs;
   std::queue<std::pair<vid_t, path_t> paths;
   int k, n;
-  typename FRAG_T::template vertex_array_t<bool> visited;
   std::vector<path_t> path_result;
 
 #ifdef PROFILING
