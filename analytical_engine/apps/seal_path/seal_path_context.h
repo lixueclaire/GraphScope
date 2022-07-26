@@ -42,7 +42,7 @@ class SealPathContext : public TensorContext<FRAG_T, typename FRAG_T::oid_t> {
   explicit SealPathContext(const FRAG_T& fragment)
       : TensorContext<FRAG_T, typename FRAG_T::oid_t>(fragment) {}
 
-  void Init(grape::DefaultMessageManager& messages, std::string pairs,
+  void Init(grape::ParallelMessageManager& messages, std::string pairs,
             int k, int n) {
     auto& frag = this->fragment();
     auto vm_ptr = frag.GetVertexMap();
@@ -53,15 +53,14 @@ class SealPathContext : public TensorContext<FRAG_T, typename FRAG_T::oid_t> {
     if (!pairs_json.empty()) {
       path_queues.resize(pairs_json.size());
       for (size_t i = 0; i < pairs_json.size(); ++i) {
-      for (auto& pair : pairs_json) {
-        if (pair[i].is_array() && pair[i].size() == 2) {
-          if (vm_ptr->GetGid(fid, pair[i][0].get<oid_t>(), src) &&
-              vm_ptr->GetGid(pair[i][1].get<oid_t>(), dst)) {
+        if (pairs_json[i].is_array() && pairs_json[i].size() == 2) {
+          if (vm_ptr->GetGid(fid, pairs_json[i][0].get<oid_t>(), src) &&
+              vm_ptr->GetGid(pairs_json[i][1].get<oid_t>(), dst)) {
             auto new_pair = std::make_pair(dst, path_t({src}));
             this->path_queues[i].push(new_pair);
           }
         } else {
-          LOG(ERROR) << "Invalid pair: " << pair.dump();
+          LOG(ERROR) << "Invalid pair: " << pairs_json[i].dump();
         }
       }
     }
@@ -79,15 +78,17 @@ class SealPathContext : public TensorContext<FRAG_T, typename FRAG_T::oid_t> {
   void Output(std::ostream& os) override {
     auto& frag = this->fragment();
 
-    for (auto& path : path_result) {
-      std::string buf;
+    for (auto& path_result : path_results) {
+      for (auto& path : path_result) {
+        std::string buf;
 
-      for (auto gid : path) {
-        buf += std::to_string(frag.Gid2Oid(gid)) + " ";
-      }
-      if (!buf.empty()) {
-        buf[buf.size() - 1] = '\n';
-        os << buf;
+        for (auto gid : path) {
+          buf += std::to_string(frag.Gid2Oid(gid)) + " ";
+        }
+        if (!buf.empty()) {
+          buf[buf.size() - 1] = '\n';
+          os << buf;
+        }
       }
     }
 
