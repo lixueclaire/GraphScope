@@ -677,6 +677,10 @@ class ArrowProjectedFragment
 
   inline fid_t fnum() const { return fnum_; }
 
+  std::shared_ptr<vertex_map_t> GetVertexMap() { return vm_ptr_; }
+
+  std::shared_ptr<const vertex_map_t> GetVertexMap() const { return vm_ptr_; }
+
   inline vertex_range_t Vertices() const { return vertices_; }
 
   inline vertex_range_t InnerVertices() const { return inner_vertices_; }

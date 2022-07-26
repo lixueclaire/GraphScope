@@ -21,8 +21,10 @@ limitations under the License.
 
 #include "grape/grape.h"
 
-#include "apps/seal/seal_context.h"
-#include "core/worker/parallel_property_worker.h"
+#include "apps/seal_path/seal_path_context.h"
+#include "core/app/app_base.h"
+#include "core/worker/default_worker.h"
+// #include "core/worker/parallel_property_worker.h"
 
 namespace gs {
 /**
@@ -32,20 +34,19 @@ namespace gs {
  */
 template <typename FRAG_T>
 class SealPath
-    : public ParallelPropertyAppBase<FRAG_T, SealPathContext<FRAG_T>>,
-      public grape::ParallelEngine,
+    : public AppBase<FRAG_T, SealPathContext<FRAG_T>>,
       public grape::Communicator {
  public:
-  INSTALL_PARALLEL_PROPERTY_WORKER(SealPath<FRAG_T>,
-                          SealPathContext<FRAG_T>, FRAG_T)
+  INSTALL_DEFAULT_WORKER(SealPath<FRAG_T>, SealPathContext<FRAG_T>, FRAG_T)
+  using vid_t = typename FRAG_T::vid_t;
   using vertex_t = typename fragment_t::vertex_t;
-  using label_id_t = typename fragment_t::label_id_t;
+  using path_t = typename context_t::path_t;
 
   static constexpr grape::LoadStrategy load_strategy =
       grape::LoadStrategy::kBothOutIn;
 
   void BFS(const fragment_t& frag, context_t& ctx, message_manager_t& messages,
-           std::queue<std::pair<vid_t, path_t>>& paths) {
+           std::queue<std::pair<vid_t, path_t>>& paths, size_t pair_index) {
     auto& path_result = ctx.path_result;
 
     while (!paths.empty()) {
@@ -55,17 +56,16 @@ class SealPath
 
       vertex_t u;
       CHECK(frag.Gid2Vertex(path[path.size() - 1], u));
-      for (label_id_t e_label; e_label < frag.edge_label_num(); e_label++) {
-        auto oes = frag.GetOutgoingAdjList(u, curr_e_label);
+        auto oes = frag.GetOutgoingAdjList(u);
         for (auto& e : oes) {
           auto v = e.neighbor();
           auto v_gid = frag.Vertex2Gid(v);
           if (v_gid == target) {
-            if (path.size() != 1) {
-              path_result.push_back(path);
-              path_result.back().push_back(v_gid);
+            if (path.size() != 1) {  // ignore the src->target path
+              path_result[i].push_back(path);
+              path_result[i].back().push_back(v_gid);
             }
-          } else if (path.size() < ctx.k - 1 && ) {
+          } else if (path.size() < ctx.k - 1 && std::find(path.begin(), path.end(), v_gid) == path.end()) {
             if (frag.IsInnerVertex(v)) {
               paths.push(pair);
               paths.back().second.push_back(v_gid);
@@ -74,7 +74,6 @@ class SealPath
             }
           }
         }
-      }
       paths.pop();
     }
   }
@@ -93,7 +92,7 @@ class SealPath
       vid_t gid;
       std::pair<vid_t, path_t> msg;
 
-      while (messages.GetMessage(v, msg)) {
+      while (messages.GetMessage(frag, v, msg)) {
         gid = frag.Vertex2Gid(v);
         msg.second.push_back(gid);
         paths.push(std::move(msg));
