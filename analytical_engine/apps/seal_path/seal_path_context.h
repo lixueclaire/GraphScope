@@ -32,7 +32,7 @@ using json = nlohmann::json;
 namespace gs {
 
 template <typename FRAG_T>
-class SealPathContext : public TensorContext<FRAG_T, typename FRAG_T::oid_t> {
+class SealPathContext : public TensorContext<FRAG_T, typename std::string> {
  public:
   using oid_t = typename FRAG_T::oid_t;
   using vid_t = typename FRAG_T::vid_t;
@@ -40,7 +40,7 @@ class SealPathContext : public TensorContext<FRAG_T, typename FRAG_T::oid_t> {
   using path_t = std::vector<vid_t>;
 
   explicit SealPathContext(const FRAG_T& fragment)
-      : TensorContext<FRAG_T, typename FRAG_T::oid_t>(fragment) {}
+      : TensorContext<FRAG_T, std::string>(fragment) {}
 
   void Init(grape::ParallelMessageManager& messages, std::string pairs,
             int k, int n) {
@@ -64,6 +64,7 @@ class SealPathContext : public TensorContext<FRAG_T, typename FRAG_T::oid_t> {
         }
       }
     }
+    this->path_results.resize(pairs_json.size());
 
     this->k = k;
     this->n = n;
@@ -99,7 +100,6 @@ class SealPathContext : public TensorContext<FRAG_T, typename FRAG_T::oid_t> {
 #endif
   }
 
-  // std::vector<std::pair<vid_t, vid_t>> pairs;
   std::vector<std::queue<std::pair<vid_t, path_t>>> path_queues;
   int k, n;
   std::vector<std::vector<path_t>> path_results;

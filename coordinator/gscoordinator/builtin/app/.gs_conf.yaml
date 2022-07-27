@@ -256,3 +256,11 @@ app:
       - grape::ImmutableEdgecutFragment
       - gs::ArrowProjectedFragment
       - gs::DynamicProjectedFragment
+  - algo: seal_path
+    type: cpp_pie
+    class_name: gs::SealPath
+    src: apps/seal_path/seal_path.h
+    compatible_graph:
+      - grape::ImmutableEdgecutFragment
+      - gs::ArrowProjectedFragment
+      - gs::DynamicProjectedFragment

@@ -22,8 +22,6 @@ limitations under the License.
 #include "grape/grape.h"
 
 #include "apps/seal_path/seal_path_context.h"
-// #include "core/app/app_base.h"
-// #include "core/worker/default_worker.h"
 
 namespace gs {
 /**
@@ -42,53 +40,61 @@ class SealPath
   using vertex_t = typename fragment_t::vertex_t;
   using path_t = typename context_t::path_t;
   using queue_t = std::queue<std::pair<vid_t, path_t>>;
+  using msg_t = std::pair<vid_t, path_t>;
 
   static constexpr grape::LoadStrategy load_strategy =
       grape::LoadStrategy::kBothOutIn;
 
+  std::string PrintPath(const fragment_t& frag, const path_t& path) {
+    std::string buf;
+
+    for (auto gid : path) {
+      buf += std::to_string(frag.Gid2Oid(gid)) + " ";
+    }
+    return buf;
+  }
+
   void ParallelBFS(const fragment_t& frag, context_t& ctx, message_manager_t& messages) {
-    std::vector<std::thread> threads(thread_num());
+    std::vector<std::thread> threads(1);
     std::atomic<int> offset(0);
-    for (int i = 0; i < thread_num(); ++i) {
+    for (int i = 0; i < 1; ++i) {
       threads[i] = std::thread([&]() {
         while (true) {
           int got_offset = offset.fetch_add(1);
           if (got_offset >= ctx.path_queues.size()) {
             break;
           }
-          if (!ctx.path_queues[got_offset].empty()) {
-            auto& paths = ctx.path_queues[got_offset];
-            auto& path_result = ctx.path_results[got_offset];
-            while (!paths.empty()) {
-              auto& pair = paths.front();
-              auto target = pair.first;
-              auto& path = pair.second;
+          auto& paths = ctx.path_queues[got_offset];
+          auto& path_result = ctx.path_results[got_offset];
+          while (!paths.empty()) {
+            auto& pair = paths.front();
+            auto target = pair.first;
+            auto& path = pair.second;
 
-              vertex_t u;
-              CHECK(frag.Gid2Vertex(path[path.size() - 1], u));
-              auto oes = frag.GetOutgoingAdjList(u);
-              for (auto& e : oes) {
-                auto v = e.neighbor();
-                auto v_gid = frag.Vertex2Gid(v);
-                if (v_gid == target) {
-                  if (path.size() != 1) {  // ignore the src->target path
-                    path_result.push_back(path);
-                    path_result.back().push_back(v_gid);
-                  }
-                } else if (path.size() < ctx.k - 1 && std::find(path.begin(), path.end(), v_gid) == path.end()) {
-                  if (frag.IsInnerVertex(v)) {
-                    paths.push(pair);
-                    paths.back().second.push_back(v_gid);
-                  } else {
-                    path_t new_path(path);
-                    new_path.push_back(got_offset);
-                    auto new_pair = std::make_pair(target, new_path);
-                    messages.Channels()[i].SyncStateOnOuterVertex(frag, v, new_pair);
-                  }
+            vertex_t u;
+            CHECK(frag.Gid2Vertex(path[path.size() - 1], u));
+            auto oes = frag.GetOutgoingAdjList(u);
+            for (auto& e : oes) {
+              auto v = e.neighbor();
+              auto v_gid = frag.Vertex2Gid(v);
+              if (v_gid == target) {
+                if (path.size() != 1) {  // ignore the src->target path
+                  path_result.push_back(path);
+                  path_result.back().push_back(v_gid);
+                }
+              } else if (path.size() < ctx.k - 1 && std::find(path.begin(), path.end(), v_gid) == path.end()) {
+                if (frag.IsInnerVertex(v)) {
+                  paths.push(pair);
+                  paths.back().second.push_back(v_gid);
+                } else {
+                  path_t new_path(path);
+                  new_path.push_back(got_offset);
+                  auto new_pair = std::make_pair(target, new_path);
+                  messages.SyncStateOnOuterVertex(frag, v, new_pair);
                 }
               }
-              paths.pop();
             }
+            paths.pop();
           }
         }
       });
@@ -103,6 +109,7 @@ class SealPath
              message_manager_t& messages) {
     messages.InitChannels(thread_num());
     ParallelBFS(frag, ctx, messages);
+    messages.ForceContinue();
   }
 
   void IncEval(const fragment_t& frag, context_t& ctx,
@@ -115,7 +122,60 @@ class SealPath
           last = frag.Vertex2Gid(v);
           ctx.path_queues[offset].push(std::move(msg));
         });
-    ParallelBFS(frag, ctx, messages);
+    pruningQueue(ctx);
+    if (checkToContinue(ctx)) {
+      ParallelBFS(frag, ctx, messages);
+      messages.ForceContinue();
+    } else {
+      writeToCtx(frag, ctx);
+    }
+  }
+
+ private:
+  void pruningQueue(context_t& ctx) {
+    for (size_t i = 0; i < ctx.path_results.size(); ++i) {
+      size_t total_path_num = 0;
+      Sum(ctx.path_results[i].size(), total_path_num);
+      if (total_path_num >= ctx.n) {
+        // the path num of pair-i is enough, cleaning the queue
+        queue_t empty;
+        std::swap(ctx.path_queues[i], empty);
+      }
+    }
+  }
+
+  bool checkToContinue(context_t& ctx) {
+    int to_continue = 0;
+    for (auto& queue : ctx.path_queues) {
+      if (!queue.empty()) {
+        to_continue = 1;
+        break;
+      }
+    }
+    int continue_num = 0;
+    Sum(to_continue, continue_num);
+    return continue_num;
+  }
+
+  void writeToCtx(const fragment_t& frag, context_t& ctx) {
+    size_t path_num = 0;
+    for (auto& result : ctx.path_results) {
+      path_num += result.size();
+    }
+    std::vector<std::string> data;
+    data.reserve(path_num);
+    for (auto& result : ctx.path_results) {
+      for (auto& path : result) {
+        std::string path_str = std::to_string(frag.Gid2Oid(path[0])) + "," + std::to_string(frag.Gid2Oid(path.back())) + ":";
+        for (size_t i = 1; i < path.size() - 2; ++i) {
+          path_str += std::to_string(frag.Gid2Oid(path[i])) + ",";
+        }
+        path_str += std::to_string(frag.Gid2Oid(path[path.size() - 2])) + ":" + std::to_string(path.size() - 1);
+        data.push_back(std::move(path_str));
+      }
+    }
+    std::vector<size_t> shape{path_num};
+    ctx.assign(data, shape);
   }
 };
 }  // namespace gs
