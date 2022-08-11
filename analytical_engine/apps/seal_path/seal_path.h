@@ -115,7 +115,7 @@ class SealPath
   void IncEval(const fragment_t& frag, context_t& ctx,
                message_manager_t& messages) {
     messages.ParallelProcess<fragment_t, std::pair<vid_t, path_t>>(
-        thread_num(), frag,
+        1, frag,
         [&ctx, &frag](int tid, vertex_t v, std::pair<vid_t, path_t>& msg) {
           auto offset = msg.second.back();
           auto& last = msg.second.back();
