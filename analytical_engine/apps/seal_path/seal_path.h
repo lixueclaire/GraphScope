@@ -81,6 +81,7 @@ class SealPath
             for (auto& e : oes) {
               auto v = e.neighbor();
               if (filter_set.find(v.GetValue()) != filter_set.end()) {
+                // ignore the repeated neighbor.
                 continue;
               }
               filter_set.insert(v.GetValue());
@@ -91,9 +92,9 @@ class SealPath
                   path_result.back().push_back(v_gid);
                 }
                 if (path_result.size() >= ctx.n) {
-                  // the result num is enough, clear the path queue.
+                  // the result num of pair-got_offset is enough, clear the path queue.
                   queue_t empty;
-                  std::swap(paths, empty );
+                  std::swap(paths, empty);
                   break;
                 }
               } else if (path.size() < ctx.k - 1 && std::find(path.begin(), path.end(), v_gid) == path.end()) {
