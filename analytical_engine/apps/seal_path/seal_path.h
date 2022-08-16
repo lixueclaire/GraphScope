@@ -55,10 +55,12 @@ class SealPath
   }
 
   void ParallelBFS(const fragment_t& frag, context_t& ctx, message_manager_t& messages) {
-    std::vector<std::thread> threads(1);
+    int thrd_num = thread_num();
+    auto& channels = messages.Channels();
+    std::vector<std::thread> threads(thrd_num);
     std::atomic<int> offset(0);
-    for (int i = 0; i < 1; ++i) {
-      threads[i] = std::thread([&]() {
+    for (int i = 0; i < thrd_num; ++i) {
+      threads[i] = std::thread([&](int tid) {
         while (true) {
           int got_offset = offset.fetch_add(1);
           if (got_offset >= ctx.path_queues.size()) {
@@ -66,6 +68,7 @@ class SealPath
           }
           auto& paths = ctx.path_queues[got_offset];
           auto& path_result = ctx.path_results[got_offset];
+          std::set<vid_t> filter_set;
           while (!paths.empty()) {
             auto& pair = paths.front();
             auto target = pair.first;
@@ -74,13 +77,24 @@ class SealPath
             vertex_t u;
             CHECK(frag.Gid2Vertex(path[path.size() - 1], u));
             auto oes = frag.GetOutgoingAdjList(u);
+            filter_set.clear();
             for (auto& e : oes) {
               auto v = e.neighbor();
+              if (filter_set.find(v.GetValue()) != filter_set.end()) {
+                continue;
+              }
+              filter_set.insert(v.GetValue());
               auto v_gid = frag.Vertex2Gid(v);
               if (v_gid == target) {
                 if (path.size() != 1) {  // ignore the src->target path
                   path_result.push_back(path);
                   path_result.back().push_back(v_gid);
+                }
+                if (path_result.size() >= ctx.n) {
+                  // the result num is enough, clear the path queue.
+                  std::queue<int> empty;
+                  std::swap(paths, empty );
+                  break;
                 }
               } else if (path.size() < ctx.k - 1 && std::find(path.begin(), path.end(), v_gid) == path.end()) {
                 if (frag.IsInnerVertex(v)) {
@@ -90,14 +104,15 @@ class SealPath
                   path_t new_path(path);
                   new_path.push_back(got_offset);
                   auto new_pair = std::make_pair(target, new_path);
-                  messages.SyncStateOnOuterVertex(frag, v, new_pair);
+                  channels[tid].SyncStateOnOuterVertex(frag, v, new_pair);
                 }
               }
             }
             paths.pop();
           }
         }
-      });
+      },
+      i);
     }
 
     for (auto& thrd : threads) {
@@ -120,7 +135,7 @@ class SealPath
           auto offset = msg.second.back();
           auto& last = msg.second.back();
           last = frag.Vertex2Gid(v);
-          ctx.path_queues[offset].push(std::move(msg));
+          ctx.path_queues[offset].push(msg);
         });
     pruningQueue(ctx);
     if (checkToContinue(ctx)) {
