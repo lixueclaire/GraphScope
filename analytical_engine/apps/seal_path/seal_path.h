@@ -92,7 +92,7 @@ class SealPath
                 }
                 if (path_result.size() >= ctx.n) {
                   // the result num is enough, clear the path queue.
-                  std::queue<int> empty;
+                  queue_t empty;
                   std::swap(paths, empty );
                   break;
                 }
@@ -108,7 +108,9 @@ class SealPath
                 }
               }
             }
-            paths.pop();
+            if (!paths.empty()) {
+              paths.pop();
+            }
           }
         }
       },
