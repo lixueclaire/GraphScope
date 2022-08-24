@@ -52,12 +52,26 @@ class SealPathContext : public TensorContext<FRAG_T, typename std::string> {
     auto pairs_json = json::parse(pairs.c_str());
     if (!pairs_json.empty()) {
       path_queues.resize(pairs_json.size());
+      one_hop_neighbors.resize(pairs_json.size());
+      compute_time.resize(pairs_json.size(), 0.0);
+      dedup_time.resize(pairs_json.size(), 0.0);
       for (size_t i = 0; i < pairs_json.size(); ++i) {
         if (pairs_json[i].is_array() && pairs_json[i].size() == 2) {
           if (vm_ptr->GetGid(fid, pairs_json[i][0].get<oid_t>(), src) &&
               vm_ptr->GetGid(pairs_json[i][1].get<oid_t>(), dst)) {
             auto new_pair = std::make_pair(dst, path_t({src}));
             this->path_queues[i].push(new_pair);
+            one_hop_neighbors[i].Init(frag.Vertices());
+            vertex_t v;
+            frag.Gid2Vertex(src, v);
+            for (auto& e : frag.GetOutgoingAdjList(v)) {
+              one_hop_neighbors[i].Insert(e.neighbor());
+            }
+            frag.Gid2Vertex(dst, v);
+            for (auto& e : frag.GetOutgoingAdjList(v)) {
+              one_hop_neighbors[i].Insert(e.neighbor());
+            }
+            one_hop_neighbors[i].Insert(v);
           }
         } else {
           LOG(ERROR) << "Invalid pair: " << pairs_json[i].dump();
@@ -101,8 +115,10 @@ class SealPathContext : public TensorContext<FRAG_T, typename std::string> {
   }
 
   std::vector<std::queue<std::pair<vid_t, path_t>>> path_queues;
+  std::vector<DenseVertexSet<typename FRAG_T::vertices_t> one_hop_neighbors;
   int k, n;
   std::vector<std::vector<path_t>> path_results;
+  std::vector<double> compute_time, dedup_time;
 
 #ifdef PROFILING
   double preprocess_time = 0;

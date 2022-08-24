@@ -69,6 +69,7 @@ class SealPath
           auto& paths = ctx.path_queues[got_offset];
           auto& path_result = ctx.path_results[got_offset];
           std::set<vid_t> filter_set;
+          double start = grape::GetCurrentTime();
           while (!paths.empty()) {
             auto& pair = paths.front();
             auto target = pair.first;
@@ -80,38 +81,47 @@ class SealPath
             filter_set.clear();
             for (auto& e : oes) {
               auto v = e.neighbor();
-              if (filter_set.find(v.GetValue()) != filter_set.end()) {
-                // ignore the repeated neighbor.
-                continue;
-              }
-              filter_set.insert(v.GetValue());
-              auto v_gid = frag.Vertex2Gid(v);
-              if (v_gid == target) {
-                if (path.size() != 1) {  // ignore the src->target path
-                  path_result.push_back(path);
-                  path_result.back().push_back(v_gid);
+              if ctx.one_hop_neighbors[got_offset].Exist(v)) {
+                double t = grape::GetCurrentTime():
+                if (filter_set.find(v.GetValue()) != filter_set.end()) {
+                  // ignore the repeated neighbor.
+                  continue;
                 }
-                if (path_result.size() >= ctx.n) {
-                  // the result num of pair-got_offset is enough, clear the path queue.
-                  queue_t empty;
-                  std::swap(paths, empty);
-                  break;
-                }
-              } else if (path.size() < ctx.k - 1 && std::find(path.begin(), path.end(), v_gid) == path.end()) {
-                if (frag.IsInnerVertex(v)) {
-                  paths.push(pair);
-                  paths.back().second.push_back(v_gid);
-                } else {
-                  path_t new_path(path);
-                  new_path.push_back(got_offset);
-                  auto new_pair = std::make_pair(target, new_path);
-                  channels[tid].SyncStateOnOuterVertex(frag, v, new_pair);
+                filter_set.insert(v.GetValue());
+                ctx.dedup_time[got_offset] += grape::GetCurrentTime() - t;
+                auto v_gid = frag.Vertex2Gid(v);
+                if (v_gid == target) {
+                  if (path.size() != 1) {  // ignore the src->target path
+                    path_result.push_back(path);
+                  }
+                  if (path_result.size() >= ctx.n) {
+                    // the result num of pair-got_offset is enough, clear the path queue.
+                    queue_t empty;
+                    std::swap(paths, empty);
+                    break;
+                  }
+                } else if (path.size() < ctx.k - 1) {
+                  double t1 = grape::GetCurrentTime();
+                  auto iter = std::find(path.begin(), path.end(), v_gid);
+                  ctx.dedup_time[got_offset] += grape::GetCurrentTime() - t1;
+                  if (iter == path.end()) {
+                  if (frag.IsInnerVertex(v)) {
+                    paths.push(pair);
+                    paths.back().second.push_back(v_gid);
+                  } else {
+                    path_t new_path(path);
+                    new_path.push_back(got_offset);
+                    auto new_pair = std::make_pair(target, new_path);
+                    channels[tid].SyncStateOnOuterVertex(frag, v, new_pair);
+                  }
+                  }
                 }
               }
             }
             if (!paths.empty()) {
               paths.pop();
             }
+            ctx.compute_time[got_offset] += grape::GetCurrentTime - start;
           }
         }
       },
@@ -176,6 +186,15 @@ class SealPath
   }
 
   void writeToCtx(const fragment_t& frag, context_t& ctx) {
+    double compute_time = 0, dedup_time = 0;
+    for (auto& t : ctx.compute_time) {
+      compute_time += t;
+    }
+    for (auto& t : ctx.dedup_time) {
+      dedup_time += t;
+    }
+    LOG(INFO) << "Compute time: " << compute_time << ", Dedup time: " << dedup_time;
+    double start = grape::GetCurrentTime();
     size_t path_num = 0;
     for (auto& result : ctx.path_results) {
       path_num += result.size();
@@ -185,15 +204,16 @@ class SealPath
     for (auto& result : ctx.path_results) {
       for (auto& path : result) {
         std::string path_str = std::to_string(frag.Gid2Oid(path[0])) + "," + std::to_string(frag.Gid2Oid(path.back())) + ":";
-        for (size_t i = 1; i < path.size() - 2; ++i) {
+        for (size_t i = 1; i < path.size() - 1; ++i) {
           path_str += std::to_string(frag.Gid2Oid(path[i])) + ",";
         }
-        path_str += std::to_string(frag.Gid2Oid(path[path.size() - 2])) + ":" + std::to_string(path.size() - 1);
+        path_str += std::to_string(frag.Gid2Oid(path[path.size() - 1])) + ":" + std::to_string(path.size());
         data.push_back(std::move(path_str));
       }
     }
     std::vector<size_t> shape{path_num};
     ctx.assign(data, shape);
+    LOG(INFO) << "Write to ctx time: " << grape::GetCurrentTime() - start;
   }
 };
 }  // namespace gs
