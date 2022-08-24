@@ -115,7 +115,7 @@ class SealPathContext : public TensorContext<FRAG_T, typename std::string> {
   }
 
   std::vector<std::queue<std::pair<vid_t, path_t>>> path_queues;
-  std::vector<DenseVertexSet<typename FRAG_T::vertices_t> one_hop_neighbors;
+  std::vector<grape::DenseVertexSet<typename FRAG_T::vertices_t>> one_hop_neighbors;
   int k, n;
   std::vector<std::vector<path_t>> path_results;
   std::vector<double> compute_time, dedup_time;

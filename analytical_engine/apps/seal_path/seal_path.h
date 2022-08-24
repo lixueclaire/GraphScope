@@ -81,8 +81,8 @@ class SealPath
             filter_set.clear();
             for (auto& e : oes) {
               auto v = e.neighbor();
-              if ctx.one_hop_neighbors[got_offset].Exist(v)) {
-                double t = grape::GetCurrentTime():
+              if (ctx.one_hop_neighbors[got_offset].Exist(v)) {
+                double t = grape::GetCurrentTime();
                 if (filter_set.find(v.GetValue()) != filter_set.end()) {
                   // ignore the repeated neighbor.
                   continue;
@@ -121,8 +121,8 @@ class SealPath
             if (!paths.empty()) {
               paths.pop();
             }
-            ctx.compute_time[got_offset] += grape::GetCurrentTime - start;
           }
+          ctx.compute_time[got_offset] += grape::GetCurrentTime() - start;
         }
       },
       i);
@@ -204,10 +204,10 @@ class SealPath
     for (auto& result : ctx.path_results) {
       for (auto& path : result) {
         std::string path_str = std::to_string(frag.Gid2Oid(path[0])) + "," + std::to_string(frag.Gid2Oid(path.back())) + ":";
-        for (size_t i = 1; i < path.size() - 1; ++i) {
+        for (size_t i = 1; i < path.size() - 2; ++i) {
           path_str += std::to_string(frag.Gid2Oid(path[i])) + ",";
         }
-        path_str += std::to_string(frag.Gid2Oid(path[path.size() - 1])) + ":" + std::to_string(path.size());
+        path_str += std::to_string(frag.Gid2Oid(path[path.size() - 2])) + ":" + std::to_string(path.size()-1);
         data.push_back(std::move(path_str));
       }
     }
