@@ -52,7 +52,7 @@ class SealPathContext : public TensorContext<FRAG_T, typename std::string> {
 
     auto pairs_json = json::parse(vpairs.c_str());
     if (!pairs_json.empty()) {
-      path_queues.resize(pairs_json.size());
+      // path_queues.resize(pairs_json.size());
       one_hop_neighbors.resize(pairs_json.size());
       pairs.resize(pairs_json.size());
       compute_time.resize(pairs_json.size(), 0.0);
@@ -78,9 +78,9 @@ class SealPathContext : public TensorContext<FRAG_T, typename std::string> {
                 for (auto& e : frag.GetOutgoingAdjList(v)) {
                   one_hop_neighbors[i].Insert(e.neighbor());
                   auto v_gid = frag.Vertex2Gid(e.neighbor());
-                  if (v_gid != dst) {
-                    path_queues[i].push({v_gid});
-                  }
+                  // if (v_gid != dst) {
+                  //   path_queues[i].push({v_gid});
+                  // }
                 }
                 frag.Gid2Vertex(dst, v);
                   for (auto& e : frag.GetOutgoingAdjList(v)) {
@@ -88,6 +88,7 @@ class SealPathContext : public TensorContext<FRAG_T, typename std::string> {
                 }
                 one_hop_neighbors[i].Insert(v);
               }
+              path_result[i].reserve(n);
             } else {
               LOG(ERROR) << "Invalid pair: " << pairs_json[i].dump();
             }
@@ -134,7 +135,7 @@ class SealPathContext : public TensorContext<FRAG_T, typename std::string> {
 #endif
   }
 
-  std::vector<std::queue< path_t>> path_queues;
+  // std::vector<std::queue< path_t>> path_queues;
   std::vector<grape::DenseVertexSet<typename FRAG_T::vertices_t>> one_hop_neighbors;
   std::vector<std::pair<vid_t, vid_t>> pairs;
   int k, n;

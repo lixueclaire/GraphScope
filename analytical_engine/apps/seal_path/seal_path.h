@@ -50,6 +50,7 @@ class SealPath
     auto& channels = messages.Channels();
     std::vector<std::thread> threads(thrd_num);
     std::atomic<int> offset(0);
+    bool terminate = false;
     LOG(INFO) << "Start ParallelBFS";
     for (int i = 0; i < thrd_num; ++i) {
       threads[i] = std::thread([&](int tid) {
@@ -60,12 +61,21 @@ class SealPath
           }
           auto& paths = ctx.path_queues[got_offset];
           auto& path_result = ctx.path_results[got_offset];
+          auto& src = ctx.pairs[got_offset].first;
           auto& target = ctx.pairs[got_offset].second;
+          queue_t paths;
+          vertex_t u, v;
+          frag.Gid2Vertex(src, v);
+          for (auto& e : frag.GetOutgoingAdjList(v)) {
+            auto v_gid = frag.Vertex2Gid(e.neighbor());
+            if (v_gid != target) {
+              paths.push({v_gid});
+            }
+          }
           while (!paths.empty()) {
             auto& path = paths.front();
 
-            vertex_t u;
-            CHECK(frag.Gid2Vertex(path[path.size() - 1], u));
+            frag.Gid2Vertex(path.back(), u);
             auto oes = frag.GetOutgoingAdjList(u);
             for (auto& e : oes) {
               auto v = e.neighbor();
@@ -75,8 +85,7 @@ class SealPath
                   path_result.push_back(path);
                   if (path_result.size() >= ctx.n) {
                     // the result num of pair-got_offset is enough, clear the path queue.
-                    queue_t empty;
-                    std::swap(paths, empty);
+                    terminate = true;
                     break;
                   }
                 } else if (path.size() < ctx.k - 2 && std::find(path.begin(), path.end(), v_gid) == path.end()) {
@@ -91,9 +100,10 @@ class SealPath
                 }
               }
             }
-            if (!paths.empty()) {
-              paths.pop();
+            if (terminate) {
+              break;
             }
+            paths.pop();
           }
         }
       },
