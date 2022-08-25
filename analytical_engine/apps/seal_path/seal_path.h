@@ -50,6 +50,7 @@ class SealPath
     auto& channels = messages.Channels();
     std::vector<std::thread> threads(thrd_num);
     std::atomic<int> offset(0);
+    LOG(INFO) << "Start ParallelBFS";
     for (int i = 0; i < thrd_num; ++i) {
       threads[i] = std::thread([&](int tid) {
         while (true) {
@@ -102,10 +103,12 @@ class SealPath
     for (auto& thrd : threads) {
       thrd.join();
     }
+    LOG(INFO) << "Finish ParallelBFS";
   }
 
   void PEval(const fragment_t& frag, context_t& ctx,
              message_manager_t& messages) {
+    LOG(INFO) << "Start PEval";
     messages.InitChannels(thread_num());
     ParallelBFS(frag, ctx, messages);
     //  messages.ForceContinue();

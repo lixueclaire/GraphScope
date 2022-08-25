@@ -44,10 +44,10 @@ class SealPathContext : public TensorContext<FRAG_T, typename std::string> {
 
   void Init(grape::ParallelMessageManager& messages, const std::string& vpairs,
             int k, int n, const std::string& path_prefix) {
+    LOG(INFO) << "Start Init";
     auto& frag = this->fragment();
     auto vm_ptr = frag.GetVertexMap();
     auto fid = frag.fid();
-    vid_t src, dst;
     prefix = path_prefix;
 
     auto pairs_json = json::parse(vpairs.c_str());
@@ -57,15 +57,16 @@ class SealPathContext : public TensorContext<FRAG_T, typename std::string> {
       pairs.resize(pairs_json.size());
       compute_time.resize(pairs_json.size(), 0.0);
       dedup_time.resize(pairs_json.size(), 0.0);
-      std::vector<std::thread> threads(64);
+      std::vector<std::thread> threads(32);
       std::atomic<int> offset(0);
-      for (int tid = 0; tid < 64; ++tid) {
+      for (int tid = 0; tid < 32; ++tid) {
         threads[tid] = std::thread([&]() {
           while (true) {
             int i = offset.fetch_add(1);
             if (i >= pairs_json.size()) {
               break;
             }
+            vid_t src, dst;
             if (pairs_json[i].is_array() && pairs_json[i].size() == 2) {
               if (vm_ptr->GetGid(pairs_json[i][0].get<oid_t>(), src) &&
                  vm_ptr->GetGid(pairs_json[i][1].get<oid_t>(), dst)) {
@@ -93,6 +94,9 @@ class SealPathContext : public TensorContext<FRAG_T, typename std::string> {
           }
         });
       }
+      for (auto& thrd : threads) {
+        thrd.join();
+      }
     }
     this->path_results.resize(pairs_json.size());
 
@@ -104,6 +108,7 @@ class SealPathContext : public TensorContext<FRAG_T, typename std::string> {
     exec_time = 0;
     postprocess_time = 0;
 #endif
+  LOG(INFO) << "Finish Init";
   }
 
   void Output(std::ostream& os) override {
@@ -119,6 +124,8 @@ class SealPathContext : public TensorContext<FRAG_T, typename std::string> {
         os << frag.Gid2Oid(path.back()) << ":" << path.size()+1 << "\n";
       }
     }
+
+    path_results.clear();
 
 #ifdef PROFILING
     VLOG(2) << "preprocess_time: " << preprocess_time << "s.";
