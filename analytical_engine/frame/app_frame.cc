@@ -86,8 +86,7 @@ void Query(void* worker_handler, const gs::rpc::QueryArgs& query_args,
   }
   std::ofstream ostream;
   auto ctx = worker->GetContext();
-  std::string output_path = grape::GetResultFilename(ctx->prefix, ctx->fragment().fid());
-  ostream.open(output_path);
+  ostream.open(ctx->prefix);
   worker->Output(ostream);
   ostream.close();
 

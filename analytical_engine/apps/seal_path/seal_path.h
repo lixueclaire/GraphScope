@@ -39,7 +39,7 @@ class SealPath
   using vid_t = typename FRAG_T::vid_t;
   using vertex_t = typename fragment_t::vertex_t;
   using path_t = typename context_t::path_t;
-  using queue_t = std::queue<std::pair<vid_t, path_t>>;
+  using queue_t = std::queue<path_t>;
   using msg_t = std::pair<vid_t, path_t>;
 
   static constexpr grape::LoadStrategy load_strategy =
@@ -59,6 +59,7 @@ class SealPath
           }
           auto& paths = ctx.path_queues[got_offset];
           auto& path_result = ctx.path_results[got_offset];
+          auto& target = ctx.pairs[got_offset].second;
           while (!paths.empty()) {
             auto& path = paths.front();
 
@@ -93,7 +94,6 @@ class SealPath
               paths.pop();
             }
           }
-          ctx.compute_time[got_offset] += grape::GetCurrentTime() - start;
         }
       },
       i);

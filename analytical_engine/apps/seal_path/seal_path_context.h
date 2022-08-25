@@ -78,7 +78,7 @@ class SealPathContext : public TensorContext<FRAG_T, typename std::string> {
                   one_hop_neighbors[i].Insert(e.neighbor());
                   auto v_gid = frag.Vertex2Gid(e.neighbor());
                   if (v_gid != dst) {
-                    paths_queue[i].push({v_gid});
+                    path_queues[i].push({v_gid});
                   }
                 }
                 frag.Gid2Vertex(dst, v);
@@ -111,9 +111,9 @@ class SealPathContext : public TensorContext<FRAG_T, typename std::string> {
     for (size_t i = 0; i < path_results.size(); ++i) {
       auto& path_result = path_results[i];
       for (auto& path : path_result) {
-        os << frag.Gid2Oid(pairs[i].first) << "," << frag.Gid2Oid(pairs[i].second << ":";
+        os << frag.Gid2Oid(pairs[i].first) << "," << frag.Gid2Oid(pairs[i].second) << ":";
         std::string buf = std::to_string(frag.Gid2Oid(pairs[i].first)) + "," + std::to_string(frag.Gid2Oid(pairs[i].second)) + ":";
-        for (size_t j = 0; j < path.size - 1; ++j) {
+        for (size_t j = 0; j < path.size() - 1; ++j) {
           os << frag.Gid2Oid(path[j]) << ",";
         }
         os << frag.Gid2Oid(path.back()) << ":" << path.size()+1 << "\n";
