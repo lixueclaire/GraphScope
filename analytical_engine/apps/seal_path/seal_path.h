@@ -45,15 +45,6 @@ class SealPath
   static constexpr grape::LoadStrategy load_strategy =
       grape::LoadStrategy::kBothOutIn;
 
-  std::string PrintPath(const fragment_t& frag, const path_t& path) {
-    std::string buf;
-
-    for (auto gid : path) {
-      buf += std::to_string(frag.Gid2Oid(gid)) + " ";
-    }
-    return buf;
-  }
-
   void ParallelBFS(const fragment_t& frag, context_t& ctx, message_manager_t& messages) {
     int thrd_num = thread_num();
     auto& channels = messages.Channels();
@@ -68,52 +59,32 @@ class SealPath
           }
           auto& paths = ctx.path_queues[got_offset];
           auto& path_result = ctx.path_results[got_offset];
-          std::set<vid_t> filter_set;
-          double start = grape::GetCurrentTime();
           while (!paths.empty()) {
-            auto& pair = paths.front();
-            auto target = pair.first;
-            auto& path = pair.second;
+            auto& path = paths.front();
 
             vertex_t u;
             CHECK(frag.Gid2Vertex(path[path.size() - 1], u));
             auto oes = frag.GetOutgoingAdjList(u);
-            filter_set.clear();
             for (auto& e : oes) {
               auto v = e.neighbor();
               if (ctx.one_hop_neighbors[got_offset].Exist(v)) {
-                double t = grape::GetCurrentTime();
-                if (filter_set.find(v.GetValue()) != filter_set.end()) {
-                  // ignore the repeated neighbor.
-                  continue;
-                }
-                filter_set.insert(v.GetValue());
-                ctx.dedup_time[got_offset] += grape::GetCurrentTime() - t;
                 auto v_gid = frag.Vertex2Gid(v);
                 if (v_gid == target) {
-                  if (path.size() != 1) {  // ignore the src->target path
-                    path_result.push_back(path);
-                  }
+                  path_result.push_back(path);
                   if (path_result.size() >= ctx.n) {
                     // the result num of pair-got_offset is enough, clear the path queue.
                     queue_t empty;
                     std::swap(paths, empty);
                     break;
                   }
-                } else if (path.size() < ctx.k - 1) {
-                  double t1 = grape::GetCurrentTime();
-                  auto iter = std::find(path.begin(), path.end(), v_gid);
-                  ctx.dedup_time[got_offset] += grape::GetCurrentTime() - t1;
-                  if (iter == path.end()) {
+                } else if (path.size() < ctx.k - 2 && std::find(path.begin(), path.end(), v_gid) == path.end()) {
                   if (frag.IsInnerVertex(v)) {
-                    paths.push(pair);
-                    paths.back().second.push_back(v_gid);
+                    paths.push(path);
+                    paths.back().push_back(v_gid);
                   } else {
                     path_t new_path(path);
                     new_path.push_back(got_offset);
-                    auto new_pair = std::make_pair(target, new_path);
-                    channels[tid].SyncStateOnOuterVertex(frag, v, new_pair);
-                  }
+                    channels[tid].SyncStateOnOuterVertex(frag, v, new_path);
                   }
                 }
               }
@@ -137,25 +108,25 @@ class SealPath
              message_manager_t& messages) {
     messages.InitChannels(thread_num());
     ParallelBFS(frag, ctx, messages);
-    messages.ForceContinue();
+    //  messages.ForceContinue();
   }
 
   void IncEval(const fragment_t& frag, context_t& ctx,
                message_manager_t& messages) {
-    messages.ParallelProcess<fragment_t, std::pair<vid_t, path_t>>(
+    /*
+    messages.ParallelProcess<fragment_t, path_t>(
         1, frag,
-        [&ctx, &frag](int tid, vertex_t v, std::pair<vid_t, path_t>& msg) {
-          auto offset = msg.second.back();
-          auto& last = msg.second.back();
+        [&ctx, &frag](int tid, vertex_t v, path_t& msg) {
+          auto offset = msg.back();
+          auto& last = msg.back();
           last = frag.Vertex2Gid(v);
           ctx.path_queues[offset].push(msg);
         });
-    pruningQueue(ctx);
+    */
+    // pruningQueue(ctx);
     if (checkToContinue(ctx)) {
       ParallelBFS(frag, ctx, messages);
       messages.ForceContinue();
-    } else {
-      writeToCtx(frag, ctx);
     }
   }
 

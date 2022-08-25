@@ -84,6 +84,12 @@ void Query(void* worker_handler, const gs::rpc::QueryArgs& query_args,
     wrapper_error = std::move(result);
     return;
   }
+  std::ofstream ostream;
+  auto ctx = worker->GetContext();
+  std::string output_path = grape::GetResultFilename(ctx->prefix, ctx->fragment().fid());
+  ostream.open(output_path);
+  worker->Output(ostream);
+  ostream.close();
 
   if (!context_key.empty()) {
     auto ctx = worker->GetContext();

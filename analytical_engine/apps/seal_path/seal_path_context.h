@@ -42,40 +42,56 @@ class SealPathContext : public TensorContext<FRAG_T, typename std::string> {
   explicit SealPathContext(const FRAG_T& fragment)
       : TensorContext<FRAG_T, std::string>(fragment) {}
 
-  void Init(grape::ParallelMessageManager& messages, std::string pairs,
-            int k, int n) {
+  void Init(grape::ParallelMessageManager& messages, const std::string& vpairs,
+            int k, int n, const std::string& path_prefix) {
     auto& frag = this->fragment();
     auto vm_ptr = frag.GetVertexMap();
     auto fid = frag.fid();
     vid_t src, dst;
+    prefix = path_prefix;
 
-    auto pairs_json = json::parse(pairs.c_str());
+    auto pairs_json = json::parse(vpairs.c_str());
     if (!pairs_json.empty()) {
       path_queues.resize(pairs_json.size());
       one_hop_neighbors.resize(pairs_json.size());
+      pairs.resize(pairs_json.size());
       compute_time.resize(pairs_json.size(), 0.0);
       dedup_time.resize(pairs_json.size(), 0.0);
-      for (size_t i = 0; i < pairs_json.size(); ++i) {
-        if (pairs_json[i].is_array() && pairs_json[i].size() == 2) {
-          if (vm_ptr->GetGid(fid, pairs_json[i][0].get<oid_t>(), src) &&
-              vm_ptr->GetGid(pairs_json[i][1].get<oid_t>(), dst)) {
-            auto new_pair = std::make_pair(dst, path_t({src}));
-            this->path_queues[i].push(new_pair);
-            one_hop_neighbors[i].Init(frag.Vertices());
-            vertex_t v;
-            frag.Gid2Vertex(src, v);
-            for (auto& e : frag.GetOutgoingAdjList(v)) {
-              one_hop_neighbors[i].Insert(e.neighbor());
+      std::vector<std::thread> threads(64);
+      std::atomic<int> offset(0);
+      for (int tid = 0; tid < 64; ++tid) {
+        threads[tid] = std::thread([&]() {
+          while (true) {
+            int i = offset.fetch_add(1);
+            if (i >= pairs_json.size()) {
+              break;
             }
-            frag.Gid2Vertex(dst, v);
-            for (auto& e : frag.GetOutgoingAdjList(v)) {
-              one_hop_neighbors[i].Insert(e.neighbor());
+            if (pairs_json[i].is_array() && pairs_json[i].size() == 2) {
+              if (vm_ptr->GetGid(pairs_json[i][0].get<oid_t>(), src) &&
+                 vm_ptr->GetGid(pairs_json[i][1].get<oid_t>(), dst)) {
+                pairs[i].first = src;
+                pairs[i].second = dst;
+                one_hop_neighbors[i].Init(frag.Vertices());
+                vertex_t v;
+                frag.Gid2Vertex(src, v);
+                for (auto& e : frag.GetOutgoingAdjList(v)) {
+                  one_hop_neighbors[i].Insert(e.neighbor());
+                  auto v_gid = frag.Vertex2Gid(e.neighbor());
+                  if (v_gid != dst) {
+                    paths_queue[i].push({v_gid});
+                  }
+                }
+                frag.Gid2Vertex(dst, v);
+                  for (auto& e : frag.GetOutgoingAdjList(v)) {
+                  one_hop_neighbors[i].Insert(e.neighbor());
+                }
+                one_hop_neighbors[i].Insert(v);
+              }
+            } else {
+              LOG(ERROR) << "Invalid pair: " << pairs_json[i].dump();
             }
-            one_hop_neighbors[i].Insert(v);
           }
-        } else {
-          LOG(ERROR) << "Invalid pair: " << pairs_json[i].dump();
-        }
+        });
       }
     }
     this->path_results.resize(pairs_json.size());
@@ -92,18 +108,15 @@ class SealPathContext : public TensorContext<FRAG_T, typename std::string> {
 
   void Output(std::ostream& os) override {
     auto& frag = this->fragment();
-
-    for (auto& path_result : path_results) {
+    for (size_t i = 0; i < path_results.size(); ++i) {
+      auto& path_result = path_results[i];
       for (auto& path : path_result) {
-        std::string buf;
-
-        for (auto gid : path) {
-          buf += std::to_string(frag.Gid2Oid(gid)) + " ";
+        os << frag.Gid2Oid(pairs[i].first) << "," << frag.Gid2Oid(pairs[i].second << ":";
+        std::string buf = std::to_string(frag.Gid2Oid(pairs[i].first)) + "," + std::to_string(frag.Gid2Oid(pairs[i].second)) + ":";
+        for (size_t j = 0; j < path.size - 1; ++j) {
+          os << frag.Gid2Oid(path[j]) << ",";
         }
-        if (!buf.empty()) {
-          buf[buf.size() - 1] = '\n';
-          os << buf;
-        }
+        os << frag.Gid2Oid(path.back()) << ":" << path.size()+1 << "\n";
       }
     }
 
@@ -114,11 +127,13 @@ class SealPathContext : public TensorContext<FRAG_T, typename std::string> {
 #endif
   }
 
-  std::vector<std::queue<std::pair<vid_t, path_t>>> path_queues;
+  std::vector<std::queue< path_t>> path_queues;
   std::vector<grape::DenseVertexSet<typename FRAG_T::vertices_t>> one_hop_neighbors;
+  std::vector<std::pair<vid_t, vid_t>> pairs;
   int k, n;
   std::vector<std::vector<path_t>> path_results;
   std::vector<double> compute_time, dedup_time;
+  std::string prefix;
 
 #ifdef PROFILING
   double preprocess_time = 0;
