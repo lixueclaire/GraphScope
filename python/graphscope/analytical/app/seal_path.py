@@ -27,7 +27,7 @@ __all__ = ["seal_path"]
 
 @project_to_simple
 @not_compatible_for("arrow_property", "dynamic_property")
-def seal_path(graph, pairs, k=5, n=10):
+def seal_path(graph, pairs, k=5, n=10, prefix="."):
     """Evalute VoteRank on a graph.
 
     Args:
@@ -53,5 +53,4 @@ def seal_path(graph, pairs, k=5, n=10):
         >>> c = graphscope.seal_path(g, [[0, 3], [1, 5]], 5, 10)
         >>> sess.close()
     """
-    ctx = AppAssets(algo="seal_path", context="tensor")(graph, json.dumps(pairs), k, n)
-    return ctx.to_numpy("r", axis=0).tolist()
+    ctx = AppAssets(algo="seal_path", context="tensor")(graph, json.dumps(pairs), k, n, prefix)
