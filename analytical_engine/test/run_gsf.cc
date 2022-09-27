@@ -24,21 +24,49 @@
 #include "grape/util.h"
 #include "vineyard/client/client.h"
 #include "vineyard/graph/fragment/arrow_fragment.h"
+#include "vineyard/graph/loader/arrow_fragment_builder.h"
 
 #include "core/fragment/arrow_projected_fragment.h"
-#include "core/loader/arrow_fragment_builder.h"
 
 namespace bl = boost::leaf;
 
 using FragmentType =
     gs::ArrowProjectedFragment<int64_t, uint64_t, int64_t, double>;
+using GraphType =
+      vineyard::ArrowFragment<vineyard::property_graph_types::OID_TYPE,
+                              vineyard::property_graph_types::VID_TYPE>;
+void RunPropertySSSP(std::shared_ptr<GraphType> fragment,
+                     const grape::CommSpec& comm_spec,
+                     const std::string& out_prefix) {
+  using AppType = gs::PropertySSSP<GraphType>;
+  auto app = std::make_shared<AppType>();
+  auto worker = AppType::CreateWorker(app, fragment);
+  auto spec = grape::DefaultParallelEngineSpec();
+
+  worker->Init(comm_spec, spec);
+  MPI_Barrier(comm_spec.comm());
+  worker->Query(4);
+
+  auto ctx = worker->GetContext();
+
+  worker->Finalize();
+  std::shared_ptr<gs::LabeledVertexPropertyContextWrapper<GraphType>> t_ctx =
+      std::dynamic_pointer_cast<
+          gs::LabeledVertexPropertyContextWrapper<GraphType>>(ctx);
+  MPI_Barrier(comm_spec.comm());
+  {
+    auto selector = gs::LabeledSelector::parse("r:label0.property0").value();
+    auto arc = t_ctx->ToNdArray(comm_spec, selector, {"", ""}).value();
+    if (comm_spec.fid() == 0) {
+      gs::output_nd_array(std::move(*arc), out_prefix + "nd_array_result_0");
+    } else {
+      CHECK(arc->Empty());
+    }
+  }
+}
 
 void Run(vineyard::Client& client, const grape::CommSpec& comm_spec,
          vineyard::ObjectID id) {
-  using GraphType =
-      vineyard::ArrowFragment<vineyard::property_graph_types::OID_TYPE,
-                              vineyard::property_graph_types::VID_TYPE>;
-
   std::shared_ptr<GraphType> fragment =
       std::dynamic_pointer_cast<GraphType>(client.GetObject(id));
   std::ofstream ofstream;
@@ -46,7 +74,7 @@ void Run(vineyard::Client& client, const grape::CommSpec& comm_spec,
   ofstream.open(output_path);
   for (auto v : fragment->InnerVertices(0)) {
     for (auto e : fragment->GetOutgoingAdjList(v, 0)) {
-      ofstream << fragment->GetId(v) << " " << fragment->GetId(e.neighbor()) << "\n";
+      ofstream << fragment->GetId(v) << "," << fragment->GetId(e.neighbor()) << "\n";
     }
   }
   ofstream.close();
@@ -86,9 +114,9 @@ int main(int argc, char** argv) {
       std::string relative_location = "/Users/weibin/Dev/gsf/test/yaml_example";
       auto graph_info = gsf::GraphInfo::Make(graph_yaml_path, relative_location);
       auto builder = std::make_unique<
-          gs::ArrowFragmentBuilder<int64_t,
+          vineyard::ArrowFragmentBuilder<int64_t,
                                    vineyard::property_graph_types::VID_TYPE>>(
-          client, comm_spec, graph_info);
+              client, comm_spec, graph_info);
       fragment_id =
           bl::try_handle_all([&builder]() { return builder->LoadFragment(); },
                              [](const vineyard::GSError& e) {
