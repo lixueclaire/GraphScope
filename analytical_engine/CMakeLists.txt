@@ -317,7 +317,7 @@ if (BUILD_TESTS)
         target_link_libraries(${target} OpenMP::OpenMP_CXX)
     endmacro()
 
-    add_vineyard_app(run_gsf SRCS test/run_gsf.cc)
+    add_vineyard_app(run_gsf_writer SRCS test/run_gsf_writer.cc)
 
 endif ()
 
