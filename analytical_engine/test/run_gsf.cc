@@ -26,15 +26,16 @@
 #include "vineyard/graph/fragment/arrow_fragment.h"
 #include "vineyard/graph/loader/arrow_fragment_builder.h"
 
-#include "core/fragment/arrow_projected_fragment.h"
+// #include "core/fragment/arrow_projected_fragment.h"
 
 namespace bl = boost::leaf;
 
-using FragmentType =
-    gs::ArrowProjectedFragment<int64_t, uint64_t, int64_t, double>;
+// using FragmentType =
+//     gs::ArrowProjectedFragment<int64_t, uint64_t, int64_t, double>;
 using GraphType =
       vineyard::ArrowFragment<vineyard::property_graph_types::OID_TYPE,
                               vineyard::property_graph_types::VID_TYPE>;
+/*
 void RunPropertySSSP(std::shared_ptr<GraphType> fragment,
                      const grape::CommSpec& comm_spec,
                      const std::string& out_prefix) {
@@ -64,6 +65,7 @@ void RunPropertySSSP(std::shared_ptr<GraphType> fragment,
     }
   }
 }
+*/
 
 void Run(vineyard::Client& client, const grape::CommSpec& comm_spec,
          vineyard::ObjectID id) {
@@ -99,6 +101,8 @@ int main(int argc, char** argv) {
     directed = atoi(argv[index]);
   }
 
+  std::string relative_location = argv[index];
+
   grape::InitMPIComm();
   {
     grape::CommSpec comm_spec;
@@ -111,8 +115,7 @@ int main(int argc, char** argv) {
 
     vineyard::ObjectID fragment_id;
     {
-      std::string relative_location = "/Users/weibin/Dev/gsf/test/yaml_example";
-      auto graph_info = gsf::GraphInfo::Make(graph_yaml_path, relative_location);
+      auto graph_info = gsf::GraphInfo::Make(graph_yaml_path);
       auto builder = std::make_unique<
           vineyard::ArrowFragmentBuilder<int64_t,
                                    vineyard::property_graph_types::VID_TYPE>>(
@@ -134,7 +137,7 @@ int main(int argc, char** argv) {
 
     MPI_Barrier(comm_spec.comm());
 
-    Run(client, comm_spec, fragment_id);
+    // Run(client, comm_spec, fragment_id);
 
     MPI_Barrier(comm_spec.comm());
   }
