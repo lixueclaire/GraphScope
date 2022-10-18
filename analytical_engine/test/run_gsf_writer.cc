@@ -35,13 +35,13 @@ using GraphType =
                               vineyard::property_graph_types::VID_TYPE>;
 
 void Run(vineyard::Client& client, const grape::CommSpec& comm_spec,
-         vineyard::ObjectID id) {
+         vineyard::ObjectID id, const std::string& prefix) {
   std::shared_ptr<GraphType> fragment =
       std::dynamic_pointer_cast<GraphType>(client.GetObject(id));
   vineyard::WriterConfig config;
-  config.prefix = "/Users/weibin/Dev/GraphScope/analytical_engine/build/test_writer";
-  config.vertex_chunk_size = 100;
-  config.edge_chunk_size = 1024;
+  config.prefix = prefix;
+  config.vertex_chunk_size = 2050262;
+  config.edge_chunk_size = 33554432;
   config.vertex_chunk_file_type = gsf::FileType::CSV;
   config.edge_chunk_file_type = gsf::FileType::CSV;
   config.adj_list_type = gsf::AdjListType::ordered_by_source;
@@ -78,9 +78,11 @@ int main(int argc, char** argv) {
 
   int directed = 1;
   if (argc > index) {
-    directed = atoi(argv[index]);
+    directed = atoi(argv[index++]);
   }
+  std::string prefix = argv[index];
 
+  LOG(INFO) << "prefix: " << prefix;
 
   grape::InitMPIComm();
   {
@@ -118,7 +120,7 @@ int main(int argc, char** argv) {
 
     MPI_Barrier(comm_spec.comm());
 
-    Run(client, comm_spec, fragment_id);
+    Run(client, comm_spec, fragment_id, prefix);
 
     MPI_Barrier(comm_spec.comm());
   }
