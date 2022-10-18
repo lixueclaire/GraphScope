@@ -636,10 +636,11 @@ install_dependencies() {
     mkdir build && cd build
     cmake .. && make -j && sudo make install
     popd
+    rm -fr yaml-cpp
 
     # install gsf
-    git clone -b acezen/test --sigle-branch git@gitlab.alibaba-inc.com:GraphScope/gsf.git
-    push gsf
+    git clone -b acezen/test --single-branch git@github.com:GraphScope/gsf.git
+    pushd gsf
     mkdir build && cd build
     cmake .. && make -j && sudo make install
     popd
