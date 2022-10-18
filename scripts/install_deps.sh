@@ -169,6 +169,7 @@ init_basic_packages() {
       libkrb5-dev
       liblz4-dev
       libprotobuf-dev
+      libprotoc-dev
       librdkafka-dev
       libre2-dev
       libc-ares-dev
@@ -188,6 +189,8 @@ init_basic_packages() {
       git
       rapidjson-dev
       libmsgpack-dev
+      libthrift-dev
+      libprotoc-dev
     )
   elif [[ "${PLATFORM}" == *"CentOS"* ]]; then
     BASIC_PACKGES_TO_INSTALL=(
@@ -466,13 +469,14 @@ install_vineyard() {
 
   check_and_remove_dir "/tmp/v6d"
   git clone -b ${V6D_BRANCH} --single-branch --depth=1 \
-      https://github.com/v6d-io/v6d.git /tmp/v6d
+      https://github.com/acezen/v6d.git /tmp/v6d
   pushd /tmp/v6d
   git submodule update --init
   mkdir -p build && pushd build
   cmake .. -DCMAKE_INSTALL_PREFIX=${DEPS_PREFIX} \
            -DBUILD_SHARED_LIBS=ON \
-           -DBUILD_VINEYARD_TESTS=OFF
+           -DBUILD_VINEYARD_TESTS=OFF \
+           -DCMAKE_BUILD_TYPE=Release
   make -j$(nproc)
   sudo make install && popd
   popd
@@ -599,11 +603,24 @@ install_dependencies() {
 
     if [[ "${packages_to_install[*]}" =~ "apache-arrow" ]]; then
       log "Installing apache-arrow."
-      wget -c https://apache.jfrog.io/artifactory/arrow/$(lsb_release --id --short | tr 'A-Z' 'a-z')/apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb \
-        -P /tmp/
-      sudo apt install -y -V /tmp/apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb
-      sudo apt update -y
-      sudo apt install -y libarrow-dev libarrow-python-dev
+      # wget -c https://apache.jfrog.io/artifactory/arrow/$(lsb_release --id --short | tr 'A-Z' 'a-z')/apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb \
+      #   -P /tmp/
+      #sudo apt install -y -V /tmp/apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb
+      #sudo apt update -y
+      #sudo apt install -y libarrow-dev libarrow-python-dev
+      git clone https://github.com/apache/arrow.git
+      pushd arrow
+      git checkout ea6875fd2
+      mkdir build
+      pushd build &&
+      cmake ../cpp \
+        -DARROW_COMPUTE=ON \
+        -DARROW_WITH_UTF8PROC=OFF \
+        -DARROW_CSV=ON \
+        -DARROW_ORC=ON -DARROW_PARQUET=ON -DARROW_JSON=ON -DARROW_FILESYSTEM=ON -DARROW_DATASET=ON
+      make -j && sudo make install
+      popd
+      popd
       # remove apache-arrow from packages_to_install
       packages_to_install=("${packages_to_install[@]/apache-arrow}")
     fi
@@ -612,6 +629,20 @@ install_dependencies() {
       log "Installing packages ${packages_to_install[*]}"
       sudo apt install -y ${packages_to_install[*]}
     fi
+
+    # install yaml-cpp
+    git clone https://github.com/jbeder/yaml-cpp.git
+    pushd yaml-cpp
+    mkdir build && cd build
+    cmake .. && make -j && sudo make install
+    popd
+
+    # install gsf
+    git clone -b acezen/test --sigle-branch git@gitlab.alibaba-inc.com:GraphScope/gsf.git
+    push gsf
+    mkdir build && cd build
+    cmake .. && make -j && sudo make install
+    popd
 
   elif [[ "${PLATFORM}" == *"CentOS"* ]]; then
     sudo dnf install -y dnf-plugins-core \
