@@ -42,15 +42,18 @@ void Run(vineyard::Client& client, const grape::CommSpec& comm_spec,
   config.prefix = prefix;
   config.vertex_chunk_size = 2050262;
   config.edge_chunk_size = 33554432;
-  config.vertex_chunk_file_type = gsf::FileType::CSV;
-  config.edge_chunk_file_type = gsf::FileType::CSV;
-  config.adj_list_type = gsf::AdjListType::ordered_by_source;
+  // config.vertex_chunk_size = 100;
+  // config.edge_chunk_size = 1024;
+  config.vertex_chunk_file_type = gsf::FileType::PARQUET;
+  config.edge_chunk_file_type = gsf::FileType::PARQUET;
+  config.adj_list_types = {gsf::AdjListType::ordered_by_source,
+                           gsf::AdjListType::ordered_by_dest};
   config.yaml_output_path = config.prefix;
 
   auto writer = std::make_unique<
           vineyard::ArrowFragmentWriter<vineyard::property_graph_types::OID_TYPE,
                                    vineyard::property_graph_types::VID_TYPE>>(
-              fragment, comm_spec, "ldbc_sample", config, true);
+              fragment, comm_spec, "cf", config, true);
   writer->Write();
 }
 
