@@ -319,6 +319,7 @@ if (BUILD_TESTS)
 
     add_vineyard_app(run_gsf_writer SRCS test/run_gsf_writer.cc)
     add_vineyard_app(run_gsf_builder SRCS test/run_gsf.cc)
+    add_vineyard_app(run_serialize SRCS test/run_serialize.cc)
 
 endif ()
 
