@@ -91,6 +91,7 @@ int main(int argc, char** argv) {
         "<v_label_num> <vfiles...> [directed]\n");
     return 1;
   }
+  LOG(INFO) << "version-1";
   int index = 1;
   std::string ipc_socket = std::string(argv[index++]);
 
