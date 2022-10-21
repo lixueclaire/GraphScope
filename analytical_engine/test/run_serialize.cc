@@ -66,7 +66,7 @@ void Serialize(vineyard::ObjectID object_id,
                            const std::string& hosts) {
   std::string serialize_cmd = "python3 -m utils serialize " + serialize_path + " " + client.IPCSocket() + " " + client.RPCEndpoint() + " " + hosts + " " + std::to_string(object_id);
   bp::ipstream is;  // reading pipe-stream
-  LOG(INFO) << "Start serialize graph";
+  LOG(INFO) << "Start serialize graph with cmd: " << serialize_cmd;
   bp::child c(serialize_cmd.c_str(), bp::std_out > is);
 
   std::string output, line;
@@ -127,10 +127,10 @@ int main(int argc, char** argv) {
         gs::ArrowFragmentLoader<vineyard::property_graph_types::OID_TYPE,
                                 vineyard::property_graph_types::VID_TYPE>>(
         client, comm_spec, efiles, vfiles, directed != 0);
-    vineyard::ObjectID fragment_id;
+    vineyard::ObjectID frag_group_id;
     {
-      fragment_id =
-          bl::try_handle_all([&loader]() { return loader->LoadFragment(); },
+      frag_group_id =
+          bl::try_handle_all([&loader]() { return loader->LoadFragmentAsFragmentGroup(); },
                              [](const vineyard::GSError& e) {
                                LOG(FATAL) << e.error_msg;
                                return 0;
@@ -146,8 +146,8 @@ int main(int argc, char** argv) {
 
     MPI_Barrier(comm_spec.comm());
 
-    if (comm_spec.worker_id() == 0) {
-      Serialize(fragment_id, client, serialize_path, hosts);
+    if (comm_spec.worker_id() == grape::kCoordinatorRank) {
+      Serialize(frag_group_id, client, serialize_path, hosts);
     }
     // Run(client, comm_spec, fragment_id, prefix);
 
