@@ -140,6 +140,18 @@ class ArrowProjectedVertexMap
     return vertex_map_->GetTotalNodesNum(label_id_);
   }
 
+  VID_T GetInnerVertexSize(fid_t fid) const {
+    return vertex_map_->GetInnerVertexSize(fid, label_id_);
+  }
+
+  VID_T GetLidFromGid(vid_t gid) const {
+    return id_parser_.GetOffset(gid);
+  }
+
+  fid_t GetFidFromGid(vid_t gid) const {
+    return id_parser_.GetFid(gid);
+  }
+
  private:
   fid_t fnum_;
   label_id_t label_num_;
