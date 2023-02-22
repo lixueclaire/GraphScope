@@ -31,7 +31,9 @@ class FlashVertexDataContext : public grape::VertexDataContext<FRAG_T, RESULT_T>
       : grape::VertexDataContext<FRAG_T, RESULT_T>(fragment, true),
         result(this->data()) {}
 
-  void Init() {}
+  void Init() {
+    return;
+  }
 
   void SetResult(FlashWare<FRAG_T, VALUE_T>* fw) {
     // TODO: parallelize this
